@@ -3,13 +3,9 @@ from pathlib import PurePosixPath
 from django.db import transaction
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
-import django_rq
 
 from .models import Video
-from .tasks import convert_video
-
-
-VIDEO_RESOLUTIONS = (480, 720, 1080)
+from .tasks import VIDEO_RESOLUTIONS, process_video
 
 
 def get_video_variant_names(file_name: str) -> list[str]:
@@ -27,14 +23,11 @@ def video_post_save(sender, instance: Video, created: bool, **kwargs) -> None:
         print(f"Video saved: {instance.title}")
         return
 
-    def enqueue_jobs() -> None:
-        queue = django_rq.get_queue("default")
+    def enqueue_job() -> None:
+        process_video.delay(instance.id)
 
-        for resolution in VIDEO_RESOLUTIONS:
-            queue.enqueue(convert_video, instance.video_file.path, resolution)
-
-    transaction.on_commit(enqueue_jobs)
-
+    transaction.on_commit(enqueue_job)
+    
     print(f"New video created: {instance.title}")
 
 
