@@ -8,6 +8,7 @@ class Video(models.Model):
     description = models.TextField()
     video_file = models.FileField(upload_to="videos/")
     thumbnail = models.ImageField(upload_to="thumbnails/")
+    hls_master_playlist = models.CharField(max_length=500, blank=True, editable=False)    
     category = models.CharField(max_length=50)
 
     def __str__(self):
