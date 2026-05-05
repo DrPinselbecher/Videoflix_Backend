@@ -1,8 +1,9 @@
 from rest_framework import serializers
+
 from video_app.models import Video
 
 
-class VideoSerializer(serializers.ModelSerializer):
+class VideoListSerializer(serializers.ModelSerializer):
     thumbnail_url = serializers.SerializerMethodField()
 
     class Meta:
