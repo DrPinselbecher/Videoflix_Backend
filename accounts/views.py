@@ -13,6 +13,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from .emails import send_activation_email, send_password_reset_email
 from .serializers import (
+    GENERIC_AUTH_ERROR,
     LoginSerializer,
     PasswordConfirmSerializer,
     PasswordResetSerializer,
@@ -66,7 +67,7 @@ class RegisterView(APIView):
         serializer.is_valid(raise_exception=True)
 
         user = serializer.save()
-        token = send_activation_email(request, user)
+        token = send_activation_email(user)
 
         return Response(
             {
@@ -89,7 +90,7 @@ class ActivateView(APIView):
 
         if user is None or not activation_token_generator.check_token(user, token):
             return Response(
-                {"detail": "Activation failed."},
+                {"detail": GENERIC_AUTH_ERROR},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -207,9 +208,11 @@ class PasswordResetView(APIView):
         user = User.objects.filter(email=email, is_active=True).first()
 
         if user is not None:
-            send_password_reset_email(request, user)
+            send_password_reset_email(user)
 
-        return Response({"detail": "An email has been sent to reset your password."})
+        return Response(
+            {"detail": "Falls ein aktives Konto existiert, wurde eine E-Mail versendet."}
+        )
 
 
 class PasswordConfirmView(APIView):
@@ -221,7 +224,7 @@ class PasswordConfirmView(APIView):
 
         if user is None or not default_token_generator.check_token(user, token):
             return Response(
-                {"detail": "Invalid password reset link."},
+                {"detail": GENERIC_AUTH_ERROR},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

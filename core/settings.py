@@ -71,6 +71,11 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'core.urls'
 
+FRONTEND_BASE_URL = os.environ.get(
+    "FRONTEND_BASE_URL",
+    default="http://127.0.0.1:5500",
+).rstrip("/")
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',

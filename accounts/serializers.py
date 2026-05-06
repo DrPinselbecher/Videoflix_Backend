@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 User = get_user_model()
 
+GENERIC_AUTH_ERROR = "Bitte überprüfe deine Eingaben und versuche es erneut."
 
 class RegisterSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -11,16 +12,14 @@ class RegisterSerializer(serializers.Serializer):
     confirmed_password = serializers.CharField(write_only=True)
 
     def validate_email(self, value: str) -> str:
-        email = value.lower()
-
-        if User.objects.filter(email=email).exists():
-            raise serializers.ValidationError("User with this email already exists.")
-
-        return email
+        return value.lower()
 
     def validate(self, attrs):
+        if User.objects.filter(email=attrs["email"]).exists():
+            raise serializers.ValidationError(GENERIC_AUTH_ERROR)
+
         if attrs["password"] != attrs["confirmed_password"]:
-            raise serializers.ValidationError({"confirmed_password": "Passwords do not match."})
+            raise serializers.ValidationError(GENERIC_AUTH_ERROR)
 
         validate_password(attrs["password"])
 
@@ -47,11 +46,8 @@ class LoginSerializer(serializers.Serializer):
 
         user = User.objects.filter(email=email).first()
 
-        if user is None or not user.check_password(password):
-            raise serializers.ValidationError("Invalid email or password.")
-
-        if not user.is_active:
-            raise serializers.ValidationError("Account is not activated.")
+        if user is None or not user.check_password(password) or not user.is_active:
+            raise serializers.ValidationError(GENERIC_AUTH_ERROR)
 
         attrs["user"] = user
 
@@ -68,7 +64,7 @@ class PasswordConfirmSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         if attrs["new_password"] != attrs["confirm_password"]:
-            raise serializers.ValidationError({"confirm_password": "Passwords do not match."})
+            raise serializers.ValidationError(GENERIC_AUTH_ERROR)
 
         validate_password(attrs["new_password"])
 
