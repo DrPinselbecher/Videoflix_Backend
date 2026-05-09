@@ -1,6 +1,6 @@
 # Videoflix Backend
 
-![Python](https://img.shields.io/badge/Python-3.13-blue)
+![Python](https://img.shields.io/badge/Python-3.12%2B-blue)
 ![Django](https://img.shields.io/badge/Django-5.2_LTS-darkgreen)
 ![DRF](https://img.shields.io/badge/DRF-REST_API-red)
 ![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-blue)
@@ -15,6 +15,18 @@ It provides user registration, e-mail activation, JWT authentication with HttpOn
 
 ---
 
+## Related Repositories
+
+| Repository | Link |
+|---|---|
+| Backend | https://github.com/DrPinselbecher/Videoflix_Backend |
+| Frontend | https://github.com/DrPinselbecher/Videoflix_Frontend |
+
+> [!IMPORTANT]
+> This repository contains only the backend. The matching frontend is maintained in a separate repository and communicates with this backend through the REST API.
+
+---
+
 ## Table of Contents
 
 - [Project Overview](#project-overview)
@@ -22,7 +34,7 @@ It provides user registration, e-mail activation, JWT authentication with HttpOn
 - [Core Features](#core-features)
 - [Architecture](#architecture)
 - [Project Structure](#project-structure)
-- [Environment Variables](#environment-variables)
+- [Environment Template](#environment-template)
 - [Local Setup](#local-setup)
 - [Authentication Flow](#authentication-flow)
 - [API Endpoints](#api-endpoints)
@@ -30,6 +42,7 @@ It provides user registration, e-mail activation, JWT authentication with HttpOn
 - [HLS Streaming](#hls-streaming)
 - [Media and Static Files](#media-and-static-files)
 - [Useful Commands](#useful-commands)
+- [Clean Code Structure](#clean-code-structure)
 - [Security Notes](#security-notes)
 - [Current Status](#current-status)
 - [License](#license)
@@ -53,6 +66,12 @@ The backend supports the main features required for a modern streaming platform:
 - automatic video thumbnail generation
 - automatic HLS conversion using FFmpeg
 - protected HLS playlist and segment delivery
+
+The matching frontend repository is:
+
+```text
+https://github.com/DrPinselbecher/Videoflix_Frontend
+```
 
 ---
 
@@ -141,11 +160,11 @@ Thumbnails + HLS files
 
 Current local Docker services:
 
-| Service | Purpose |
-|---|---|
-| `videoflix_backend` | Django backend with Gunicorn |
-| `videoflix_database` | PostgreSQL database |
-| `videoflix_redis` | Redis cache and queue broker |
+| Compose Service | Container Name | Purpose |
+|---|---|---|
+| `web` | `videoflix_backend` | Django backend with Gunicorn |
+| `db` | `videoflix_database` | PostgreSQL database |
+| `redis` | `videoflix_redis` | Redis cache and queue broker |
 
 > [!IMPORTANT]
 > For local submission, the RQ worker currently runs inside the backend container. For production, the worker should run as a separate service.
@@ -169,24 +188,38 @@ core/
 ├── settings.py
 ├── urls.py
 ├── wsgi.py
+├── asgi.py
+└── __init__.py
 
 accounts/
+├── admin.py
+├── apps.py
 ├── authentication.py
 ├── emails.py
+├── managers.py
 ├── models.py
 ├── serializers.py
+├── services.py
 ├── tokens.py
+├── urls.py
+├── utils.py
 ├── views.py
+└── __init__.py
 
 video_app/
-├── api/
-│   ├── serializers.py
-│   ├── urls.py
-│   └── views.py
+├── admin.py
 ├── apps.py
 ├── models.py
 ├── signals.py
 ├── tasks.py
+├── utils.py
+├── api/
+│   ├── serializers.py
+│   ├── urls.py
+│   └── views.py
+├── tests/
+│   └── __init__.py
+└── __init__.py
 
 media/
 ├── videos/
@@ -196,9 +229,9 @@ media/
 
 ---
 
-## Environment Variables
+## Environment Template
 
-Create a `.env` file based on `.env-template`.
+Create a `.env` file based on `.env.template`.
 
 ```env
 DJANGO_SUPERUSER_USERNAME=admin
@@ -237,6 +270,9 @@ DEFAULT_FROM_EMAIL=noreply@videoflix.local
 
 | Variable | Description |
 |---|---|
+| `DJANGO_SUPERUSER_USERNAME` | Initial Django admin username |
+| `DJANGO_SUPERUSER_PASSWORD` | Initial Django admin password |
+| `DJANGO_SUPERUSER_EMAIL` | Initial Django admin e-mail |
 | `SECRET_KEY` | Django secret key |
 | `DEBUG` | Enables or disables debug mode |
 | `ALLOWED_HOSTS` | Allowed backend hosts |
@@ -253,7 +289,16 @@ DEFAULT_FROM_EMAIL=noreply@videoflix.local
 | `REDIS_PORT` | Redis port |
 | `REDIS_DB` | Redis database index |
 | `EMAIL_BACKEND` | Django e-mail backend |
+| `EMAIL_HOST` | SMTP host |
+| `EMAIL_PORT` | SMTP port |
+| `EMAIL_HOST_USER` | SMTP username |
+| `EMAIL_HOST_PASSWORD` | SMTP password |
+| `EMAIL_USE_TLS` | Enables TLS |
+| `EMAIL_USE_SSL` | Enables SSL |
 | `DEFAULT_FROM_EMAIL` | Sender address for system e-mails |
+
+> [!WARNING]
+> Do not commit a real `.env` file. Only commit `.env.template`.
 
 ---
 
@@ -262,14 +307,14 @@ DEFAULT_FROM_EMAIL=noreply@videoflix.local
 ### 1. Clone Repository
 
 ```bash
-git clone <repository-url>
-cd <repository-name>
+git clone https://github.com/DrPinselbecher/Videoflix_Backend.git
+cd Videoflix_Backend
 ```
 
 ### 2. Create Environment File
 
 ```bash
-cp .env-template .env
+cp .env.template .env
 ```
 
 Then update the values inside `.env`.
@@ -300,6 +345,20 @@ http://127.0.0.1:8000
 
 ```text
 http://127.0.0.1:8000/admin/
+```
+
+### 6. Start the Frontend
+
+Clone and start the matching frontend repository:
+
+```text
+https://github.com/DrPinselbecher/Videoflix_Frontend
+```
+
+Expected local frontend URL:
+
+```text
+http://127.0.0.1:5500
 ```
 
 ---
@@ -581,10 +640,23 @@ Recommended production setup:
 docker compose up --build
 ```
 
+### Start Project in Background
+
+```bash
+docker compose up -d --build
+```
+
 ### Stop Containers
 
 ```bash
 docker compose down
+```
+
+### Reset Containers and Volumes
+
+```bash
+docker compose down -v
+docker compose up -d --build
 ```
 
 ### Rebuild Containers
@@ -596,44 +668,83 @@ docker compose up --build --force-recreate
 ### Create Migrations
 
 ```bash
-docker compose exec videoflix_backend python manage.py makemigrations
+docker compose exec web python manage.py makemigrations
 ```
 
 ### Run Migrations
 
 ```bash
-docker compose exec videoflix_backend python manage.py migrate
+docker compose exec web python manage.py migrate
+```
+
+### Check Django Project
+
+```bash
+docker compose exec web python manage.py check
 ```
 
 ### Create Superuser
 
 ```bash
-docker compose exec videoflix_backend python manage.py createsuperuser
+docker compose exec web python manage.py createsuperuser
 ```
 
 ### Run Tests
 
 ```bash
-docker compose exec videoflix_backend python manage.py test
+docker compose exec web python manage.py test
 ```
 
 ### Collect Static Files
 
 ```bash
-docker compose exec videoflix_backend python manage.py collectstatic --noinput
+docker compose exec web python manage.py collectstatic --noinput
 ```
 
 ### Run RQ Worker Manually
 
 ```bash
-docker compose exec videoflix_backend python manage.py rqworker default
+docker compose exec web python manage.py rqworker default
 ```
 
 ### Open Django Shell
 
 ```bash
-docker compose exec videoflix_backend python manage.py shell
+docker compose exec web python manage.py shell
 ```
+
+### Show Backend Logs
+
+```bash
+docker compose logs web --tail=100
+```
+
+---
+
+## Clean Code Structure
+
+The backend structure follows the project Definition of Done:
+
+| File | Responsibility |
+|---|---|
+| `views.py` | API views that return responses |
+| `serializers.py` | Request validation and response serialization |
+| `services.py` | Business logic and authentication operations |
+| `utils.py` | Helper functions, paths, cookies, FFmpeg helpers |
+| `emails.py` | E-mail URL building and sending |
+| `tasks.py` | Background job entry points |
+| `signals.py` | Django model signal handlers |
+| `authentication.py` | Custom cookie-based JWT authentication |
+
+Backend-specific clean code goals:
+
+- functions have one clear responsibility
+- helper logic is moved out of views
+- views mainly validate requests and return responses
+- long helper logic is placed in `utils.py` or `services.py`
+- variable and function names follow `snake_case`
+- unused code and commented-out code are removed
+- code is structured to stay PEP 8 compatible where possible
 
 ---
 
@@ -649,6 +760,7 @@ docker compose exec videoflix_backend python manage.py shell
 - `DEBUG` must be disabled in production.
 - `JWT_COOKIE_SECURE` should be enabled in production.
 - Production deployments should use HTTPS.
+- Real secrets must not be committed to Git.
 
 Generic authentication error example:
 
@@ -671,6 +783,8 @@ Generic authentication error example:
 - The RQ worker is required for thumbnail and HLS generation.
 - HLS playlists and segments are generated after video upload.
 - Thumbnails are generated automatically from uploaded videos.
+- The frontend and backend are separate repositories.
+- Frontend/backend communication happens through the REST API.
 
 ---
 
@@ -691,6 +805,7 @@ Implemented:
 - protected HLS segment delivery
 - automatic thumbnail generation
 - automatic HLS conversion
+- backend clean code refactor according to DoD
 
 Planned production improvements:
 
@@ -704,4 +819,4 @@ Planned production improvements:
 
 ## License
 
-This project is part of a backend learning and portfolio project.
+This project is part of a Developer Akademie learning and portfolio project.
