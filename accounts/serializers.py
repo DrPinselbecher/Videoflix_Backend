@@ -1,10 +1,19 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 User = get_user_model()
 
 GENERIC_AUTH_ERROR = "Bitte überprüfe deine Eingaben und versuche es erneut."
+
+
+def validate_password_or_raise_generic(password: str) -> None:
+    try:
+        validate_password(password)
+    except DjangoValidationError:
+        raise serializers.ValidationError(GENERIC_AUTH_ERROR)
+
 
 class RegisterSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -21,8 +30,7 @@ class RegisterSerializer(serializers.Serializer):
         if attrs["password"] != attrs["confirmed_password"]:
             raise serializers.ValidationError(GENERIC_AUTH_ERROR)
 
-        validate_password(attrs["password"])
-
+        validate_password_or_raise_generic(attrs["password"])
         return attrs
 
     def create(self, validated_data):
@@ -50,7 +58,6 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError(GENERIC_AUTH_ERROR)
 
         attrs["user"] = user
-
         return attrs
 
 
@@ -66,6 +73,5 @@ class PasswordConfirmSerializer(serializers.Serializer):
         if attrs["new_password"] != attrs["confirm_password"]:
             raise serializers.ValidationError(GENERIC_AUTH_ERROR)
 
-        validate_password(attrs["new_password"])
-
+        validate_password_or_raise_generic(attrs["new_password"])
         return attrs

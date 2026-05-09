@@ -1,12 +1,17 @@
-from pathlib import Path
-
-from django.conf import settings
 from django.http import FileResponse, Http404
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from video_app.models import Video
+from video_app.utils import (
+    HLS_PLAYLIST_CONTENT_TYPE,
+    HLS_SEGMENT_CONTENT_TYPE,
+    get_hls_playlist_path,
+    get_hls_segment_path,
+    is_valid_hls_resolution,
+    is_valid_hls_segment,
+)
 
 from .serializers import VideoListSerializer
 
@@ -21,17 +26,17 @@ class HLSPlaylistView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, movie_id: int, resolution: str):
-        if resolution not in ["480p", "720p", "1080p"]:
+        if not is_valid_hls_resolution(resolution):
             raise Http404("Invalid resolution.")
 
-        playlist_path = Path(settings.MEDIA_ROOT) / "hls" / str(movie_id) / f"{resolution}.m3u8"
+        playlist_path = get_hls_playlist_path(movie_id, resolution)
 
         if not playlist_path.exists():
             raise Http404("Playlist not found.")
 
         return FileResponse(
             playlist_path.open("rb"),
-            content_type="application/vnd.apple.mpegurl",
+            content_type=HLS_PLAYLIST_CONTENT_TYPE,
         )
 
 
@@ -39,21 +44,18 @@ class HLSSegmentView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, movie_id: int, resolution: str, segment: str):
-        if resolution not in ["480p", "720p", "1080p"]:
+        if not is_valid_hls_resolution(resolution):
             raise Http404("Invalid resolution.")
 
-        if not segment.endswith(".ts") or "/" in segment or "\\" in segment:
+        if not is_valid_hls_segment(resolution, segment):
             raise Http404("Invalid segment.")
 
-        if not segment.startswith(f"{resolution}_"):
-            raise Http404("Invalid segment.")
-
-        segment_path = Path(settings.MEDIA_ROOT) / "hls" / str(movie_id) / segment
+        segment_path = get_hls_segment_path(movie_id, segment)
 
         if not segment_path.exists():
             raise Http404("Segment not found.")
 
         return FileResponse(
             segment_path.open("rb"),
-            content_type="video/MP2T",
+            content_type=HLS_SEGMENT_CONTENT_TYPE,
         )
