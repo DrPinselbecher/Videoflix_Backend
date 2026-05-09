@@ -14,6 +14,7 @@ from .utils import (
 
 @job("default", timeout=28800)
 def process_video(video_id: int) -> None:
+    """Generate thumbnail and HLS files for a video in the background."""
     video = get_video(video_id)
 
     if video is None:

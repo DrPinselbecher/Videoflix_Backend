@@ -17,15 +17,20 @@ from .serializers import VideoListSerializer
 
 
 class VideoListView(ListAPIView):
+    """Return all available videos ordered by creation date."""
+
     queryset = Video.objects.all().order_by("-created_at")
     serializer_class = VideoListSerializer
     permission_classes = [IsAuthenticated]
 
 
 class HLSPlaylistView(APIView):
+    """Serve protected HLS playlist files."""
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request, movie_id: int, resolution: str):
+        """Return the HLS playlist for a movie and resolution."""
         if not is_valid_hls_resolution(resolution):
             raise Http404("Invalid resolution.")
 
@@ -41,9 +46,12 @@ class HLSPlaylistView(APIView):
 
 
 class HLSSegmentView(APIView):
+    """Serve protected HLS segment files."""
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request, movie_id: int, resolution: str, segment: str):
+        """Return one HLS segment for a movie and resolution."""
         if not is_valid_hls_resolution(resolution):
             raise Http404("Invalid resolution.")
 

@@ -11,6 +11,7 @@ from .utils import delete_video_assets, get_hls_directory
 
 @receiver(post_save, sender=Video)
 def video_post_save(sender, instance: Video, created: bool, **kwargs) -> None:
+    """Start video processing after a new video was committed."""
     if not created:
         return
 
@@ -19,6 +20,7 @@ def video_post_save(sender, instance: Video, created: bool, **kwargs) -> None:
 
 @receiver(post_delete, sender=Video)
 def video_post_delete(sender, instance: Video, **kwargs) -> None:
+    """Delete original video, thumbnail and HLS files after deletion."""
     video_name = instance.video_file.name
     thumbnail_name = instance.thumbnail.name if instance.thumbnail else ""
     hls_path = get_hls_directory(instance.id)

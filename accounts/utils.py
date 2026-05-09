@@ -8,6 +8,7 @@ User = get_user_model()
 
 
 def set_jwt_cookie(response: Response, key: str, value: str, max_age: int) -> None:
+    """Set a JWT cookie with the configured security options."""
     response.set_cookie(
         key=key,
         value=value,
@@ -23,6 +24,7 @@ def set_auth_cookies(
     access_token: str,
     refresh_token: str | None = None,
 ) -> None:
+    """Set access and optional refresh token cookies on a response."""
     set_jwt_cookie(
         response,
         settings.JWT_ACCESS_COOKIE_NAME,
@@ -40,15 +42,18 @@ def set_auth_cookies(
 
 
 def delete_auth_cookies(response: Response) -> None:
+    """Delete authentication cookies from a response."""
     response.delete_cookie(settings.JWT_ACCESS_COOKIE_NAME)
     response.delete_cookie(settings.JWT_REFRESH_COOKIE_NAME)
 
 
 def get_refresh_token_from_request(request) -> str | None:
+    """Return the refresh token from request cookies if present."""
     return request.COOKIES.get(settings.JWT_REFRESH_COOKIE_NAME)
 
 
 def get_user_from_uidb64(uidb64: str):
+    """Return a user instance from a base64 encoded user ID."""
     try:
         uid = force_str(urlsafe_base64_decode(uidb64))
         return User.objects.get(pk=uid)

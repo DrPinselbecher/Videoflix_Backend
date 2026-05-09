@@ -30,10 +30,13 @@ from .utils import (
 
 
 class RegisterView(APIView):
+    """Register a new inactive user and send an activation e-mail."""
+
     authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
+        """Create a user account from registration data."""
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -52,10 +55,13 @@ class RegisterView(APIView):
 
 
 class ActivateView(APIView):
+    """Activate a user account with uidb64 and token."""
+
     authentication_classes = []
     permission_classes = [AllowAny]
 
     def get(self, request, uidb64: str, token: str):
+        """Activate the account if the token is valid."""
         user = get_user_from_uidb64(uidb64)
 
         if user is None or not activate_user(user, token):
@@ -68,10 +74,13 @@ class ActivateView(APIView):
 
 
 class LoginView(APIView):
+    """Authenticate a user and set JWT cookies."""
+
     authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
+        """Validate login data and return user information."""
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -93,10 +102,13 @@ class LoginView(APIView):
 
 
 class LogoutView(APIView):
+    """Logout a user and blacklist the refresh token."""
+
     authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
+        """Blacklist refresh token and delete auth cookies."""
         refresh_token = get_refresh_token_from_request(request)
 
         if refresh_token is None:
@@ -119,10 +131,13 @@ class LogoutView(APIView):
 
 
 class CookieTokenRefreshView(APIView):
+    """Refresh JWT cookies using the refresh token cookie."""
+
     authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
+        """Create a new access token from the refresh token."""
         refresh_token = get_refresh_token_from_request(request)
 
         if refresh_token is None:
@@ -145,10 +160,13 @@ class CookieTokenRefreshView(APIView):
 
 
 class PasswordResetView(APIView):
+    """Send a password reset e-mail for active user accounts."""
+
     authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
+        """Handle password reset requests without exposing user existence."""
         serializer = PasswordResetSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -163,10 +181,13 @@ class PasswordResetView(APIView):
 
 
 class PasswordConfirmView(APIView):
+    """Set a new password using uidb64 and password reset token."""
+
     authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request, uidb64: str, token: str):
+        """Validate reset token and update the user password."""
         user = get_user_from_uidb64(uidb64)
 
         if not is_valid_password_reset_token(user, token):

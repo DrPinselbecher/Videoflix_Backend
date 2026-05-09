@@ -4,6 +4,8 @@ from video_app.models import Video
 
 
 class VideoListSerializer(serializers.ModelSerializer):
+    """Serialize video data for the protected video list endpoint."""
+
     thumbnail_url = serializers.SerializerMethodField()
 
     class Meta:
@@ -18,6 +20,7 @@ class VideoListSerializer(serializers.ModelSerializer):
         ]
 
     def get_thumbnail_url(self, obj: Video) -> str | None:
+        """Return an absolute thumbnail URL if a thumbnail exists."""
         if not obj.thumbnail:
             return None
 

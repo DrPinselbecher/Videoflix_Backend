@@ -7,7 +7,7 @@
 ![Redis](https://img.shields.io/badge/Queue-Redis-red)
 ![Docker](https://img.shields.io/badge/Container-Docker-blue)
 ![FFmpeg](https://img.shields.io/badge/Video-FFmpeg-green)
-![Status](https://img.shields.io/badge/Status-In_Development-orange)
+![Status](https://img.shields.io/badge/Status-Ready_for_Submission-brightgreen)
 
 Videoflix Backend is a Django-based REST API for a Netflix-/Prime-Video-like streaming platform.
 
@@ -52,7 +52,7 @@ It provides user registration, e-mail activation, JWT authentication with HttpOn
 ## Project Overview
 
 > [!NOTE]
-> This backend was built as part of a portfolio and learning project. The focus is on clean API design, authentication, background processing and protected video streaming.
+> This backend focuses on clean API design, secure authentication, background processing and protected video streaming.
 
 The backend supports the main features required for a modern streaming platform:
 
@@ -815,8 +815,3 @@ Planned production improvements:
 - object storage option for media files
 - extended automated test coverage
 
----
-
-## License
-
-This project is part of a Developer Akademie learning and portfolio project.
