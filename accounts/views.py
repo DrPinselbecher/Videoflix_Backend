@@ -1,4 +1,7 @@
 from rest_framework import status
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.utils.decorators import method_decorator
+from django.middleware.csrf import get_token
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -201,3 +204,16 @@ class PasswordConfirmView(APIView):
 
         update_user_password(user, serializer.validated_data["new_password"])
         return Response({"detail": "Your password has been successfully reset."})
+
+
+@method_decorator(ensure_csrf_cookie, name="dispatch")
+class CsrfTokenView(APIView):
+    """Provide a CSRF cookie for clients that authenticate via cookies."""
+
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        """Return a successful response and force CSRF cookie creation."""
+        get_token(request)
+        return Response({"detail": "CSRF cookie set."})

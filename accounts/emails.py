@@ -2,7 +2,9 @@ from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
-from django.core.mail import send_mail
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 
@@ -26,12 +28,11 @@ def send_activation_email(user) -> str:
     token = activation_token_generator.make_token(user)
     activation_url = build_frontend_url("pages/auth/activate.html", uidb64, token)
 
-    send_mail(
+    _send_html_email(
         subject="Activate your Videoflix account",
-        message=f"Activate your account:\n{activation_url}",
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[user.email],
-        fail_silently=False,
+        template_name="accounts/emails/activation_email.html",
+        action_url=activation_url,
+        recipient=user.email,
     )
 
     return token
@@ -43,10 +44,23 @@ def send_password_reset_email(user) -> None:
     token = default_token_generator.make_token(user)
     reset_url = build_frontend_url("pages/auth/password_confirm.html", uidb64, token)
 
-    send_mail(
+    _send_html_email(
         subject="Reset your Videoflix password",
-        message=f"Reset your password:\n{reset_url}",
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[user.email],
-        fail_silently=False,
+        template_name="accounts/emails/password_reset_email.html",
+        action_url=reset_url,
+        recipient=user.email,
     )
+
+
+def _send_html_email(subject: str, template_name: str, action_url: str, recipient: str):
+    """Send an HTML e-mail with plain text fallback."""
+    html_body = render_to_string(template_name, {"action_url": action_url})
+    text_body = strip_tags(html_body)
+    email = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[recipient],
+    )
+    email.attach_alternative(html_body, "text/html")
+    email.send(fail_silently=False)

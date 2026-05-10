@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework import serializers
 
 User = get_user_model()
@@ -64,7 +65,7 @@ class LoginSerializer(serializers.Serializer):
         user = User.objects.filter(email=email).first()
 
         if user is None or not user.check_password(password) or not user.is_active:
-            raise serializers.ValidationError(GENERIC_AUTH_ERROR)
+            raise AuthenticationFailed(GENERIC_AUTH_ERROR)
 
         attrs["user"] = user
         return attrs
