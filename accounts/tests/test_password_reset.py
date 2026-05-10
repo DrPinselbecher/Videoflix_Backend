@@ -10,7 +10,10 @@ from accounts.tests.factories import create_test_user, get_uidb64
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 class PasswordResetViewTest(APITestCase):
+    """Test password reset request endpoint behavior."""
+
     def test_password_reset_sends_email_for_active_user(self):
+        """Send a reset e-mail for an active user account."""
         create_test_user()
 
         response = self.client.post(reverse("password-reset"), {
@@ -21,6 +24,7 @@ class PasswordResetViewTest(APITestCase):
         self.assertEqual(len(mail.outbox), 1)
 
     def test_password_reset_does_not_expose_unknown_email(self):
+        """Return success without sending e-mail for unknown accounts."""
         response = self.client.post(reverse("password-reset"), {
             "email": "unknown@example.com",
         })
@@ -30,7 +34,10 @@ class PasswordResetViewTest(APITestCase):
 
 
 class PasswordConfirmViewTest(APITestCase):
+    """Test password confirmation endpoint behavior."""
+
     def test_password_confirm_updates_password(self):
+        """Update the user password with a valid reset token."""
         user = create_test_user()
         uidb64 = get_uidb64(user)
         token = default_token_generator.make_token(user)
@@ -45,6 +52,7 @@ class PasswordConfirmViewTest(APITestCase):
         self.assertTrue(user.check_password("NewStrongPass123!"))
 
     def test_password_confirm_with_invalid_token_fails(self):
+        """Reject password confirmation with an invalid reset token."""
         user = create_test_user()
         uidb64 = get_uidb64(user)
 

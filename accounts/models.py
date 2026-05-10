@@ -5,6 +5,8 @@ from .managers import UserManager
 
 
 class User(AbstractBaseUser, PermissionsMixin):
+    """Custom user model using username for admin login and e-mail for API login."""
+
     username = models.CharField(max_length=150, unique=True)
     email = models.EmailField(unique=True)
     is_active = models.BooleanField(default=False)
@@ -17,4 +19,5 @@ class User(AbstractBaseUser, PermissionsMixin):
     REQUIRED_FIELDS = ["email"]
 
     def __str__(self) -> str:
+        """Return the username as string representation."""
         return self.username

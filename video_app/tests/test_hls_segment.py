@@ -12,7 +12,10 @@ from video_app.tests.factories import create_test_video
 
 
 class HLSSegmentViewTest(APITestCase):
+    """Test protected HLS segment endpoint behavior."""
+
     def setUp(self):
+        """Create temporary media storage and authenticate the test user."""
         self.temp_dir = TemporaryDirectory()
         self.override = override_settings(MEDIA_ROOT=self.temp_dir.name)
         self.override.enable()
@@ -20,15 +23,18 @@ class HLSSegmentViewTest(APITestCase):
         self.client.force_authenticate(user=self.user)
 
     def tearDown(self):
+        """Clean up temporary media storage."""
         self.override.disable()
         self.temp_dir.cleanup()
 
     def create_segment(self, video_id: int, segment: str = "720p_00000.ts") -> None:
+        """Create a temporary HLS segment file."""
         hls_dir = Path(settings.MEDIA_ROOT) / "hls" / str(video_id)
         hls_dir.mkdir(parents=True, exist_ok=True)
         (hls_dir / segment).write_bytes(b"fake segment content")
 
     def test_segment_is_returned_for_valid_request(self):
+        """Return segment file for a valid HLS request."""
         video = create_test_video()
         self.create_segment(video.id)
 
@@ -40,6 +46,7 @@ class HLSSegmentViewTest(APITestCase):
         self.assertEqual(response["Content-Type"], "video/MP2T")
 
     def test_segment_invalid_resolution_returns_404(self):
+        """Return 404 for unsupported HLS resolution."""
         video = create_test_video()
 
         response = self.client.get(
@@ -49,6 +56,7 @@ class HLSSegmentViewTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_segment_wrong_prefix_returns_404(self):
+        """Return 404 when segment prefix does not match the resolution."""
         video = create_test_video()
         self.create_segment(video.id, "480p_00000.ts")
 
@@ -59,6 +67,7 @@ class HLSSegmentViewTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_segment_missing_file_returns_404(self):
+        """Return 404 when the segment file does not exist."""
         video = create_test_video()
 
         response = self.client.get(

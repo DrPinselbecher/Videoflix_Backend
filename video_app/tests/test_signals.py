@@ -12,17 +12,22 @@ from video_app.tests.factories import create_test_video
 
 
 class VideoSignalTest(TestCase):
+    """Test video model signal behavior."""
+
     def setUp(self):
+        """Create temporary media storage."""
         self.temp_dir = TemporaryDirectory()
         self.override = override_settings(MEDIA_ROOT=self.temp_dir.name)
         self.override.enable()
 
     def tearDown(self):
+        """Clean up temporary media storage."""
         self.override.disable()
         self.temp_dir.cleanup()
 
     @patch("video_app.signals.process_video.delay")
     def test_video_post_save_enqueues_processing_job(self, mock_delay):
+        """Enqueue video processing after a new video is created."""
         video_file = SimpleUploadedFile(
             "signal_video.mp4",
             b"fake video content",
@@ -40,6 +45,7 @@ class VideoSignalTest(TestCase):
         mock_delay.assert_called_once_with(video.id)
 
     def test_video_post_delete_removes_related_files(self):
+        """Delete video file, thumbnail and HLS directory after video deletion."""
         video = create_test_video(thumbnail=True)
         hls_dir = Path(settings.MEDIA_ROOT) / "hls" / str(video.id)
         hls_dir.mkdir(parents=True, exist_ok=True)

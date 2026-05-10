@@ -2,6 +2,8 @@ from django.contrib.auth.base_user import BaseUserManager
 
 
 class UserManager(BaseUserManager):
+    """Create regular users and superusers for the custom user model."""
+
     def create_user(
         self,
         username: str,
@@ -9,6 +11,7 @@ class UserManager(BaseUserManager):
         password: str | None = None,
         **extra_fields,
     ):
+        """Create and save a regular user."""
         if not username:
             raise ValueError("Username is required.")
 
@@ -29,6 +32,7 @@ class UserManager(BaseUserManager):
         password: str | None = None,
         **extra_fields,
     ):
+        """Create and save a superuser with staff and superuser permissions."""
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         extra_fields.setdefault("is_active", True)

@@ -10,7 +10,10 @@ User = get_user_model()
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 class RegisterViewTest(APITestCase):
+    """Test user registration endpoint behavior."""
+
     def test_register_creates_inactive_user_and_sends_email(self):
+        """Create an inactive user and send an activation e-mail."""
         url = reverse("account-register")
         data = {
             "email": "test@example.com",
@@ -27,6 +30,7 @@ class RegisterViewTest(APITestCase):
         self.assertEqual(len(mail.outbox), 1)
 
     def test_register_rejects_existing_email(self):
+        """Reject registration when the e-mail address already exists."""
         User.objects.create_user(
             username="test@example.com",
             email="test@example.com",
