@@ -31,8 +31,7 @@ class LoginViewTest(APITestCase):
             "password": "wrong-password",
         })
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
     def test_login_rejects_inactive_user(self):
         """Reject login for inactive user accounts."""
         create_test_user(is_active=False)
@@ -42,4 +41,4 @@ class LoginViewTest(APITestCase):
             "password": "StrongPass123!",
         })
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)

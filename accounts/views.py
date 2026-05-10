@@ -4,6 +4,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 
+from django.middleware.csrf import get_token
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import ensure_csrf_cookie
+
 from .emails import send_activation_email, send_password_reset_email
 from .serializers import (
     GENERIC_AUTH_ERROR,
@@ -27,6 +31,19 @@ from .utils import (
     get_user_from_uidb64,
     set_auth_cookies,
 )
+
+
+@method_decorator(ensure_csrf_cookie, name="dispatch")
+class CsrfCookieView(APIView):
+    """Set a CSRF cookie for frontend requests."""
+
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        """Return success response and ensure CSRF cookie is set."""
+        get_token(request)
+        return Response({"detail": "CSRF cookie set."})
 
 
 class RegisterView(APIView):
@@ -82,7 +99,12 @@ class LoginView(APIView):
     def post(self, request):
         """Validate login data and return user information."""
         serializer = LoginSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+
+        if not serializer.is_valid():
+            return Response(
+                {"detail": GENERIC_AUTH_ERROR},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
 
         user = serializer.validated_data["user"]
         access_token, refresh_token = get_tokens_for_user(user)
