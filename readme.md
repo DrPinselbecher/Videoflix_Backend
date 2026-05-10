@@ -41,6 +41,7 @@ It provides user registration, e-mail activation, JWT authentication with HttpOn
 - [Video Processing](#video-processing)
 - [HLS Streaming](#hls-streaming)
 - [Media and Static Files](#media-and-static-files)
+- [Testing](#testing)
 - [Useful Commands](#useful-commands)
 - [Clean Code Structure](#clean-code-structure)
 - [Security Notes](#security-notes)
@@ -66,6 +67,7 @@ The backend supports the main features required for a modern streaming platform:
 - automatic video thumbnail generation
 - automatic HLS conversion using FFmpeg
 - protected HLS playlist and segment delivery
+- automated backend tests for authentication, video endpoints, HLS delivery, tasks and signals
 
 The matching frontend repository is:
 
@@ -90,6 +92,7 @@ https://github.com/DrPinselbecher/Videoflix_Frontend
 | Application Server | Gunicorn |
 | Containerization | Docker Compose |
 | Local Mail Backend | Django Console Email Backend |
+| Tests | Django TestCase / DRF APITestCase |
 
 ---
 
@@ -184,61 +187,93 @@ nginx    -> Static/Media delivery
 ## Project Structure
 
 ```text
-core/
-├── settings.py
-├── urls.py
-├── wsgi.py
-├── asgi.py
-└── __init__.py
-
-accounts/
-├── admin.py
-├── apps.py
-├── authentication.py
-├── emails.py
-├── managers.py
-├── models.py
-├── serializers.py
-├── services.py
-├── tokens.py
-├── urls.py
-├── utils.py
-├── views.py
-└── __init__.py
-
-video_app/
-├── admin.py
-├── apps.py
-├── models.py
-├── signals.py
-├── tasks.py
-├── utils.py
-├── api/
+.
+├── .dockerignore
+├── .env.template
+├── .gitignore
+├── backend.Dockerfile
+├── backend.entrypoint.sh
+├── docker-compose.yml
+├── manage.py
+├── README.md
+├── requirements.txt
+├── accounts/
+│   ├── admin.py
+│   ├── apps.py
+│   ├── authentication.py
+│   ├── emails.py
+│   ├── managers.py
+│   ├── models.py
 │   ├── serializers.py
+│   ├── services.py
+│   ├── tokens.py
 │   ├── urls.py
-│   └── views.py
-├── tests/
+│   ├── utils.py
+│   ├── views.py
+│   ├── tests/
+│   │   ├── __init__.py
+│   │   ├── factories.py
+│   │   ├── test_activation.py
+│   │   ├── test_login.py
+│   │   ├── test_logout.py
+│   │   ├── test_password_reset.py
+│   │   ├── test_register.py
+│   │   └── test_token_refresh.py
 │   └── __init__.py
-└── __init__.py
+├── core/
+│   ├── asgi.py
+│   ├── settings.py
+│   ├── urls.py
+│   ├── wsgi.py
+│   └── __init__.py
+└── video_app/
+    ├── admin.py
+    ├── apps.py
+    ├── models.py
+    ├── signals.py
+    ├── tasks.py
+    ├── utils.py
+    ├── api/
+    │   ├── serializers.py
+    │   ├── urls.py
+    │   └── views.py
+    ├── tests/
+    │   ├── __init__.py
+    │   ├── factories.py
+    │   ├── test_hls_playlist.py
+    │   ├── test_hls_segment.py
+    │   ├── test_signals.py
+    │   ├── test_tasks.py
+    │   └── test_video_list.py
+    └── __init__.py
+```
 
+Generated local media files are stored under:
+
+```text
 media/
 ├── videos/
 ├── thumbnails/
 └── hls/
 ```
 
+> [!IMPORTANT]
+> `backend.entrypoint.sh` must be included in the repository because `backend.Dockerfile` uses it as the container entrypoint.
+
 ---
 
 ## Environment Template
 
-Create a `.env` file based on `.env.template`.
+Create a local `.env` file based on `.env.template`.
+
+The provided values below are suitable for local Docker development. Replace `SECRET_KEY` with a generated secret key before starting the containers.
 
 ```env
 DJANGO_SUPERUSER_USERNAME=admin
-DJANGO_SUPERUSER_PASSWORD=your_admin_password
+DJANGO_SUPERUSER_PASSWORD=adminpassword
 DJANGO_SUPERUSER_EMAIL=admin@example.com
 
-SECRET_KEY=your_secret_key
+SECRET_KEY=replace_this_with_a_generated_secret_key
 DEBUG=True
 
 ALLOWED_HOSTS=localhost,127.0.0.1
@@ -247,9 +282,9 @@ CORS_ALLOWED_ORIGINS=http://localhost:5500,http://127.0.0.1:5500
 
 FRONTEND_BASE_URL=http://127.0.0.1:5500
 
-DB_NAME=your_database_name
-DB_USER=your_database_user
-DB_PASSWORD=your_database_password
+DB_NAME=videoflix_db
+DB_USER=videoflix_user
+DB_PASSWORD=videoflix_password
 DB_HOST=db
 DB_PORT=5432
 
@@ -282,9 +317,9 @@ DEFAULT_FROM_EMAIL=noreply@videoflix.local
 | `DB_NAME` | PostgreSQL database name |
 | `DB_USER` | PostgreSQL user |
 | `DB_PASSWORD` | PostgreSQL password |
-| `DB_HOST` | PostgreSQL host |
+| `DB_HOST` | PostgreSQL host inside Docker Compose |
 | `DB_PORT` | PostgreSQL port |
-| `REDIS_HOST` | Redis host |
+| `REDIS_HOST` | Redis host inside Docker Compose |
 | `REDIS_LOCATION` | Redis cache URL |
 | `REDIS_PORT` | Redis port |
 | `REDIS_DB` | Redis database index |
@@ -313,16 +348,60 @@ cd Videoflix_Backend
 
 ### 2. Create Environment File
 
+#### Windows PowerShell
+
+```powershell
+Copy-Item .env.template .env
+```
+
+#### macOS / Linux
+
 ```bash
 cp .env.template .env
 ```
 
-Then update the values inside `.env`.
+### 3. Generate a Django Secret Key
 
-### 3. Start Containers
+Generate a local secret key without special characters:
 
 ```bash
-docker compose up --build
+python -c "import secrets,string; print(''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(50)))"
+```
+
+Copy the generated value and replace this line in `.env`:
+
+```env
+SECRET_KEY=replace_this_with_a_generated_secret_key
+```
+
+Example:
+
+```env
+SECRET_KEY=your_generated_50_character_secret_key
+```
+
+> [!IMPORTANT]
+> Do not use quotation marks around the secret key if it only contains letters and numbers.
+
+### 4. Verify Local Docker Values
+
+For local Docker development, these values must be set in `.env`:
+
+```env
+DB_NAME=videoflix_db
+DB_USER=videoflix_user
+DB_PASSWORD=videoflix_password
+DB_HOST=db
+DB_PORT=5432
+
+REDIS_HOST=redis
+REDIS_LOCATION=redis://redis:6379/1
+```
+
+### 5. Start Containers
+
+```bash
+docker compose up -d --build
 ```
 
 The backend container runs:
@@ -335,19 +414,64 @@ python manage.py rqworker default &
 gunicorn core.wsgi:application --bind 0.0.0.0:8000 --reload
 ```
 
-### 4. Access Backend
+### 6. Check Container Status
+
+```bash
+docker compose ps
+```
+
+Expected running containers:
+
+```text
+videoflix_backend
+videoflix_database
+videoflix_redis
+```
+
+### 7. Run Django System Check
+
+```bash
+docker compose exec web python manage.py check
+```
+
+Expected result:
+
+```text
+System check identified no issues (0 silenced).
+```
+
+### 8. Run Tests
+
+```bash
+docker compose exec web python manage.py test
+```
+
+Expected result:
+
+```text
+OK
+```
+
+### 9. Access Backend
 
 ```text
 http://127.0.0.1:8000
 ```
 
-### 5. Access Django Admin
+### 10. Access Django Admin
 
 ```text
 http://127.0.0.1:8000/admin/
 ```
 
-### 6. Start the Frontend
+Use the superuser credentials from `.env`:
+
+```text
+Username: admin
+Password: adminpassword
+```
+
+### 11. Start the Frontend
 
 Clone and start the matching frontend repository:
 
@@ -632,6 +756,45 @@ Recommended production setup:
 
 ---
 
+## Testing
+
+The backend includes automated tests for authentication, video endpoints, HLS delivery, background tasks and Django signals.
+
+Run all tests:
+
+```bash
+docker compose exec web python manage.py test
+```
+
+Run only account tests:
+
+```bash
+docker compose exec web python manage.py test accounts
+```
+
+Run only video app tests:
+
+```bash
+docker compose exec web python manage.py test video_app
+```
+
+Test coverage includes:
+
+- user registration
+- account activation
+- login
+- logout
+- token refresh
+- password reset
+- password confirmation
+- protected video list
+- protected HLS playlist delivery
+- protected HLS segment delivery
+- video processing task
+- video model signals
+
+---
+
 ## Useful Commands
 
 ### Start Project
@@ -761,6 +924,8 @@ Backend-specific clean code goals:
 - `JWT_COOKIE_SECURE` should be enabled in production.
 - Production deployments should use HTTPS.
 - Real secrets must not be committed to Git.
+- `.env` must never be committed.
+- `.env.template` must not contain production secrets.
 
 Generic authentication error example:
 
@@ -785,6 +950,7 @@ Generic authentication error example:
 - Thumbnails are generated automatically from uploaded videos.
 - The frontend and backend are separate repositories.
 - Frontend/backend communication happens through the REST API.
+- The Docker entrypoint waits for PostgreSQL before running migrations and starting Gunicorn.
 
 ---
 
@@ -806,6 +972,10 @@ Implemented:
 - automatic thumbnail generation
 - automatic HLS conversion
 - backend clean code refactor according to DoD
+- automated tests for authentication endpoints
+- automated tests for video list, HLS playlists and HLS segments
+- automated tests for video processing task and signals
+- Docker-based local setup with PostgreSQL and Redis
 
 Planned production improvements:
 
@@ -813,5 +983,10 @@ Planned production improvements:
 - Nginx for static and media delivery
 - production-ready HTTPS setup
 - object storage option for media files
-- extended automated test coverage
+- extended edge-case and integration test coverage
 
+---
+
+## License
+
+This project is currently not licensed for public reuse.
