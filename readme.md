@@ -576,7 +576,7 @@ After a successful login, the backend sets `access_token` and `refresh_token` as
 The password reset e-mail points to the frontend:
 
 ```text
-http://127.0.0.1:5500/pages/auth/password_confirm.html?uidb64=<uidb64>&token=<token>
+http://127.0.0.1:5500/pages/auth/confirm_password.html?uidb64=<uidb64>&token=<token>
 ```
 
 The frontend extracts `uidb64` and `token`, then sends the new password to:
