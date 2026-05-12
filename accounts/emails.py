@@ -21,8 +21,8 @@ def get_uidb64(user) -> str:
 
 
 def get_logo_url() -> str:
-    """Return the frontend logo URL used inside HTML e-mails."""
-    return f"{settings.FRONTEND_BASE_URL}/assets/icons/logo_icon.svg"
+    """Return the public logo URL used inside HTML e-mails."""
+    return settings.EMAIL_LOGO_URL
 
 
 def send_html_email(subject: str, text_body: str, html_body: str, recipient: str) -> None:

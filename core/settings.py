@@ -76,6 +76,8 @@ FRONTEND_BASE_URL = os.environ.get(
     default="http://127.0.0.1:5500",
 ).rstrip("/")
 
+EMAIL_LOGO_URL = os.environ.get("EMAIL_LOGO_URL", "")
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',

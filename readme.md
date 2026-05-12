@@ -93,7 +93,7 @@ https://github.com/DrPinselbecher/Videoflix_Frontend
 | Static Files | WhiteNoise |
 | Application Server | Gunicorn |
 | Containerization | Docker Compose |
-| Local Mail Backend | Django Console Email Backend |
+| E-Mail Delivery | Django Console Email Backend / SMTP |
 | Tests | Django TestCase / DRF APITestCase |
 
 ---
@@ -305,6 +305,7 @@ EMAIL_HOST_PASSWORD=
 EMAIL_USE_TLS=True
 EMAIL_USE_SSL=False
 DEFAULT_FROM_EMAIL=noreply@videoflix.local
+EMAIL_LOGO_URL=https://assets.rene-theis.de/videoflix/videoflix_logo.png
 ```
 
 | Variable | Description |
@@ -335,6 +336,7 @@ DEFAULT_FROM_EMAIL=noreply@videoflix.local
 | `EMAIL_USE_TLS` | Enables TLS |
 | `EMAIL_USE_SSL` | Enables SSL |
 | `DEFAULT_FROM_EMAIL` | Sender address for system e-mails |
+| `EMAIL_LOGO_URL` | Public HTTPS logo URL used in HTML e-mails |
 
 > [!WARNING]
 > Do not commit a real `.env` file. Only commit `.env.template`.
@@ -561,7 +563,7 @@ is_active = False
 The user receives an activation e-mail.
 
 > [!NOTE]
-> In local development, the console e-mail backend is used. E-mails are written to the Docker logs and are not sent to a real mailbox.
+> By default, local development uses the Django console e-mail backend. E-mails are written to the Docker logs and are not sent to a real mailbox. For real e-mail delivery, configure SMTP values in `.env`.
 
 Show the local e-mail output:
 
@@ -928,6 +930,18 @@ docker compose logs worker --tail=100
 docker compose logs web --tail=300
 ```
 
+### Test SMTP E-Mail Delivery
+
+```bash
+docker compose exec web python manage.py shell -c "from django.core.mail import send_mail; print(send_mail('Videoflix SMTP Test', 'Testmail erfolgreich.', None, ['your-email@example.com'], fail_silently=False))"
+```
+
+Expected result:
+
+```text
+1
+```
+
 ---
 
 ## Clean Code Structure
@@ -1026,6 +1040,8 @@ Implemented:
 - automated tests for video list, HLS playlists and HLS segments
 - automated tests for video processing task and signals
 - Docker-based local setup with PostgreSQL, Redis, Gunicorn and RQ worker
+- SMTP-ready e-mail delivery configuration
+- configurable public logo URL for HTML e-mails
 
 Planned production improvements:
 
