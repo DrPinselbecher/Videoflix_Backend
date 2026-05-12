@@ -1,5 +1,4 @@
 services:
-
   db:
     image: postgres:latest
     container_name: videoflix_database
@@ -22,7 +21,15 @@ services:
       dockerfile: backend.Dockerfile
     env_file: .env
     container_name: videoflix_backend
-
+    command: >
+      gunicorn core.wsgi:application
+      --bind 0.0.0.0:8000
+      --worker-class gthread
+      --workers 2
+      --threads 4
+      --timeout 120
+      --access-logfile -
+      --error-logfile -
     volumes:
       - .:/app
       - videoflix_media:/app/media
@@ -31,12 +38,28 @@ services:
       - "8000:8000"
     environment:
       - PYTHONUNBUFFERED=1
+      - RUN_STARTUP_TASKS=true
     depends_on:
       - db
       - redis
 
-
-
+  worker:
+    build:
+      context: .
+      dockerfile: backend.Dockerfile
+    env_file: .env
+    container_name: videoflix_worker
+    command: python manage.py rqworker default
+    volumes:
+      - .:/app
+      - videoflix_media:/app/media
+      - videoflix_static:/app/static
+    environment:
+      - PYTHONUNBUFFERED=1
+      - RUN_STARTUP_TASKS=false
+    depends_on:
+      - db
+      - redis
 
 volumes:
   postgres_data:
