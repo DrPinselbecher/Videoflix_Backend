@@ -45,6 +45,7 @@ It provides user registration, e-mail activation, JWT authentication with HttpOn
 - [Useful Commands](#useful-commands)
 - [Clean Code Structure](#clean-code-structure)
 - [Security Notes](#security-notes)
+- [Development Notes](#development-notes)
 - [Current Status](#current-status)
 - [License](#license)
 
@@ -61,6 +62,7 @@ The backend supports the main features required for a modern streaming platform:
 - e-mail-based account activation
 - secure login and logout
 - JWT authentication via HttpOnly cookies
+- CSRF protection for unsafe requests
 - refresh-token rotation and blacklist support
 - password reset flow
 - protected video list endpoint
@@ -106,6 +108,7 @@ https://github.com/DrPinselbecher/Videoflix_Frontend
 - logout with refresh-token blacklist
 - JWT access token stored in HttpOnly cookie
 - JWT refresh token stored in HttpOnly cookie
+- CSRF cookie endpoint for frontend requests
 - token refresh endpoint
 - password reset via e-mail token
 - generic authentication error messages
@@ -125,7 +128,7 @@ https://github.com/DrPinselbecher/Videoflix_Frontend
 - Docker Compose setup
 - PostgreSQL database service
 - Redis service for cache and queue handling
-- RQ worker for background video processing
+- separate RQ worker service for background video processing
 - Gunicorn as application server
 - WhiteNoise for static file handling
 
@@ -154,7 +157,7 @@ Redis
    |
    | Background processing
    v
-RQ Worker
+RQ Worker Container
    |
    | FFmpeg
    v
@@ -166,11 +169,12 @@ Current local Docker services:
 | Compose Service | Container Name | Purpose |
 |---|---|---|
 | `web` | `videoflix_backend` | Django backend with Gunicorn |
+| `worker` | `videoflix_worker` | RQ worker for background video processing |
 | `db` | `videoflix_database` | PostgreSQL database |
 | `redis` | `videoflix_redis` | Redis cache and queue broker |
 
 > [!IMPORTANT]
-> For local submission, the RQ worker currently runs inside the backend container. For production, the worker should run as a separate service.
+> The RQ worker runs as a separate Docker Compose service. The web container only serves the Django/Gunicorn application.
 
 Recommended production structure:
 
@@ -404,15 +408,19 @@ REDIS_LOCATION=redis://redis:6379/1
 docker compose up -d --build
 ```
 
-The backend container runs:
+The `web` container runs the Django backend through Gunicorn:
 
 ```bash
-python manage.py collectstatic --noinput
-python manage.py makemigrations
-python manage.py migrate
-python manage.py rqworker default &
-gunicorn core.wsgi:application --bind 0.0.0.0:8000 --reload
+gunicorn core.wsgi:application --bind 0.0.0.0:8000
 ```
+
+The `worker` container runs the RQ worker separately:
+
+```bash
+python manage.py rqworker default
+```
+
+On startup, the backend entrypoint waits for PostgreSQL and runs the required startup tasks such as static file collection, migrations and superuser creation.
 
 ### 6. Check Container Status
 
@@ -424,6 +432,7 @@ Expected running containers:
 
 ```text
 videoflix_backend
+videoflix_worker
 videoflix_database
 videoflix_redis
 ```
@@ -495,6 +504,7 @@ Videoflix uses JWT tokens stored in HttpOnly cookies.
 |---|---|
 | `access_token` | Authenticates API requests |
 | `refresh_token` | Requests new access tokens |
+| `csrftoken` | CSRF protection for unsafe frontend requests |
 
 Relevant cookie settings:
 
@@ -516,6 +526,20 @@ permission_classes = [AllowAny]
 
 This prevents invalid or expired cookies from blocking login, registration, activation or password reset requests.
 
+### CSRF Cookie
+
+The frontend requests a CSRF cookie from:
+
+```text
+GET /api/csrf/
+```
+
+Unsafe requests such as `POST` then send the CSRF token as request header:
+
+```text
+X-CSRFToken
+```
+
 ### Registration
 
 The user registers with:
@@ -535,6 +559,15 @@ is_active = False
 ```
 
 The user receives an activation e-mail.
+
+> [!NOTE]
+> In local development, the console e-mail backend is used. E-mails are written to the Docker logs and are not sent to a real mailbox.
+
+Show the local e-mail output:
+
+```bash
+docker compose logs web --tail=300
+```
 
 ### E-Mail Activation
 
@@ -602,6 +635,7 @@ Example request body:
 
 | Method | Endpoint | Description | Permission |
 |---|---|---|---|
+| `GET` | `/api/csrf/` | Set CSRF cookie | Public |
 | `POST` | `/api/register/` | Register new user | Public |
 | `GET` | `/api/activate/<uidb64>/<token>/` | Activate user account | Public |
 | `POST` | `/api/login/` | Login user | Public |
@@ -647,7 +681,7 @@ post_save signal is triggered
 transaction.on_commit() enqueues RQ job
         |
         v
-RQ worker starts FFmpeg processing
+Separate RQ worker container starts FFmpeg processing
         |
         v
 Thumbnail is generated
@@ -679,7 +713,7 @@ media/hls/<video_id>/
 ```
 
 > [!IMPORTANT]
-> FFmpeg must be installed inside the backend container. The RQ worker must be running, otherwise thumbnails and HLS files will not be generated.
+> FFmpeg must be installed inside the backend image. The separate `worker` service must be running, otherwise thumbnails and HLS files will not be generated.
 
 ---
 
@@ -867,7 +901,7 @@ docker compose exec web python manage.py collectstatic --noinput
 ### Run RQ Worker Manually
 
 ```bash
-docker compose exec web python manage.py rqworker default
+docker compose exec worker python manage.py rqworker default
 ```
 
 ### Open Django Shell
@@ -880,6 +914,18 @@ docker compose exec web python manage.py shell
 
 ```bash
 docker compose logs web --tail=100
+```
+
+### Show Worker Logs
+
+```bash
+docker compose logs worker --tail=100
+```
+
+### Show Local E-Mail Output
+
+```bash
+docker compose logs web --tail=300
 ```
 
 ---
@@ -916,6 +962,7 @@ Backend-specific clean code goals:
 - JWT tokens are stored in HttpOnly cookies.
 - Refresh tokens are blacklisted on logout.
 - Refresh-token rotation is enabled.
+- CSRF protection is used for unsafe frontend requests.
 - Authentication error messages are generic to avoid account enumeration.
 - Video list, HLS playlists and HLS segments require authentication.
 - Original uploaded videos are not intended for public access.
@@ -946,11 +993,12 @@ Generic authentication error example:
 - Django Admin login uses `username` and `password`.
 - API login uses `email` and `password`.
 - The RQ worker is required for thumbnail and HLS generation.
+- The RQ worker runs as a separate Docker Compose service.
 - HLS playlists and segments are generated after video upload.
 - Thumbnails are generated automatically from uploaded videos.
 - The frontend and backend are separate repositories.
 - Frontend/backend communication happens through the REST API.
-- The Docker entrypoint waits for PostgreSQL before running migrations and starting Gunicorn.
+- The Docker entrypoint waits for PostgreSQL before running startup tasks.
 
 ---
 
@@ -963,6 +1011,7 @@ Implemented:
 - login
 - logout
 - JWT cookie authentication
+- CSRF cookie endpoint
 - token refresh
 - refresh-token blacklist
 - password reset
@@ -971,15 +1020,15 @@ Implemented:
 - protected HLS segment delivery
 - automatic thumbnail generation
 - automatic HLS conversion
+- separate RQ worker Docker service
 - backend clean code refactor according to DoD
 - automated tests for authentication endpoints
 - automated tests for video list, HLS playlists and HLS segments
 - automated tests for video processing task and signals
-- Docker-based local setup with PostgreSQL and Redis
+- Docker-based local setup with PostgreSQL, Redis, Gunicorn and RQ worker
 
 Planned production improvements:
 
-- separate Docker service for RQ worker
 - Nginx for static and media delivery
 - production-ready HTTPS setup
 - object storage option for media files
