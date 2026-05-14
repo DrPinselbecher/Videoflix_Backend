@@ -10,34 +10,56 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
-from pathlib import Path
 from datetime import timedelta
+from pathlib import Path
 
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
 
-
-
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('SECRET_KEY', default='django-insecure-@#x5h3zj!g+8g1v@2^b6^9$8&f1r7g$@t3v!p4#=g0r5qzj4m3')
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', 'True').strip().lower() in ('true', '1', 't')
-
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", default="localhost").split(",")
-CSRF_TRUSTED_ORIGINS = os.environ.get("CSRF_TRUSTED_ORIGINS", default="http://localhost:4200").split(",")
+load_dotenv(BASE_DIR / ".env")
 
 
-# Application definition
+def env_bool(name: str, default: str = "False") -> bool:
+    return os.environ.get(name, default).strip().lower() in ("true", "1", "t", "yes")
+
+
+SECRET_KEY = os.getenv(
+    "SECRET_KEY",
+    default="django-insecure-@#x5h3zj!g+8g1v@2^b6^9$8&f1r7g$@t3v!p4#=g0r5qzj4m3",
+)
+
+DEBUG = env_bool("DEBUG", "True")
+
+ALLOWED_HOSTS = os.environ.get(
+    "ALLOWED_HOSTS",
+    default="localhost,127.0.0.1",
+).split(",")
+
+CSRF_TRUSTED_ORIGINS = os.environ.get(
+    "CSRF_TRUSTED_ORIGINS",
+    default="http://localhost:5500,http://127.0.0.1:5500",
+).split(",")
+
+CORS_ALLOWED_ORIGINS = os.environ.get(
+    "CORS_ALLOWED_ORIGINS",
+    default="http://localhost:5500,http://127.0.0.1:5500",
+).split(",")
+
+CORS_ALLOW_CREDENTIALS = True
+
+FRONTEND_BASE_URL = os.environ.get(
+    "FRONTEND_BASE_URL",
+    default="http://127.0.0.1:5500",
+).rstrip("/")
+
+EMAIL_LOGO_URL = os.environ.get(
+    "EMAIL_LOGO_URL",
+    default="https://assets.rene-theis.de/videoflix/videoflix_logo.png",
+)
+
 
 INSTALLED_APPS = [
     "corsheaders",
@@ -69,36 +91,26 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = 'core.urls'
-
-FRONTEND_BASE_URL = os.environ.get(
-    "FRONTEND_BASE_URL",
-    default="http://127.0.0.1:5500",
-).rstrip("/")
-
-EMAIL_LOGO_URL = os.environ.get("EMAIL_LOGO_URL", "")
+ROOT_URLCONF = "core.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'core.wsgi.application'
+WSGI_APPLICATION = "core.wsgi.application"
 
-
-# Database
-# https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
     "default": {
@@ -107,7 +119,7 @@ DATABASES = {
         "USER": os.environ.get("DB_USER", default="videoflix_user"),
         "PASSWORD": os.environ.get("DB_PASSWORD", default="supersecretpassword"),
         "HOST": os.environ.get("DB_HOST", default="db"),
-        "PORT": os.environ.get("DB_PORT", default=5432)
+        "PORT": os.environ.get("DB_PORT", default="5432"),
     }
 }
 
@@ -116,19 +128,19 @@ CACHES = {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": os.environ.get("REDIS_LOCATION", default="redis://redis:6379/1"),
         "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient"
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
         },
-        "KEY_PREFIX": "videoflix"
+        "KEY_PREFIX": "videoflix",
     }
 }
 
 RQ_QUEUES = {
-    'default': {
-        'HOST': os.environ.get("REDIS_HOST", default="redis"),
-        'PORT': os.environ.get("REDIS_PORT", default=6379),
-        'DB': os.environ.get("REDIS_DB", default=0),
-        'DEFAULT_TIMEOUT': 900,
-        'REDIS_CLIENT_KWARGS': {},
+    "default": {
+        "HOST": os.environ.get("REDIS_HOST", default="redis"),
+        "PORT": int(os.environ.get("REDIS_PORT", default="6379")),
+        "DB": int(os.environ.get("REDIS_DB", default="0")),
+        "DEFAULT_TIMEOUT": 900,
+        "REDIS_CLIENT_KWARGS": {},
     },
 }
 
@@ -157,58 +169,57 @@ JWT_COOKIE_SAMESITE = "Lax"
 JWT_ACCESS_COOKIE_MAX_AGE = 15 * 60
 JWT_REFRESH_COOKIE_MAX_AGE = 7 * 24 * 60 * 60
 
-CORS_ALLOWED_ORIGINS = os.environ.get(
-    "CORS_ALLOWED_ORIGINS",
-    default="http://localhost:5500,http://127.0.0.1:5500",
-).split(",")
 
-CORS_ALLOW_CREDENTIALS = True
+EMAIL_HOST = os.environ.get("EMAIL_HOST", default="")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", default="587"))
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", "True")
+EMAIL_USE_SSL = env_bool("EMAIL_USE_SSL", "False")
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", default="noreply@videoflix.local")
+
+SMTP_CONFIGURED = all(
+    [
+        EMAIL_HOST,
+        EMAIL_HOST_USER,
+        EMAIL_HOST_PASSWORD,
+    ]
+)
 
 EMAIL_BACKEND = os.environ.get(
     "EMAIL_BACKEND",
-    default="django.core.mail.backends.console.EmailBackend" if DEBUG else "django.core.mail.backends.smtp.EmailBackend",
+    default=(
+        "django.core.mail.backends.smtp.EmailBackend"
+        if SMTP_CONFIGURED
+        else "django.core.mail.backends.console.EmailBackend"
+    ),
 )
-EMAIL_HOST = os.environ.get("EMAIL_HOST", default="")
-EMAIL_PORT = int(os.environ.get("EMAIL_PORT", default=587))
-EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", default="")
-EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", default="")
-EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", default="True").strip().lower() in ("true", "1", "t")
-EMAIL_USE_SSL = os.environ.get("EMAIL_USE_SSL", default="False").strip().lower() in ("true", "1", "t")
-DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", default="noreply@videoflix.local")
 
-# Password validation
-# https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
 
 
-# Internationalization
-# https://docs.djangoproject.com/en/5.1/topics/i18n/
+LANGUAGE_CODE = "en-us"
 
-LANGUAGE_CODE = 'en-us'
-
-TIME_ZONE = 'UTC'
+TIME_ZONE = "UTC"
 
 USE_I18N = True
 
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "static"
@@ -216,9 +227,6 @@ STATIC_ROOT = BASE_DIR / "static"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
-
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
