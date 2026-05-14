@@ -17,11 +17,14 @@ from .serializers import VideoListSerializer
 
 
 class VideoListView(ListAPIView):
-    """Return all available videos ordered by creation date."""
+    """Return only videos with completed HLS processing."""
 
-    queryset = Video.objects.all().order_by("-created_at")
     serializer_class = VideoListSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """Return videos only after HLS processing has completed."""
+        return Video.objects.exclude(hls_master_playlist="").order_by("-created_at")
 
 
 class HLSPlaylistView(APIView):
