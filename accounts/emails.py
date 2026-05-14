@@ -9,9 +9,9 @@ from django.utils.http import urlsafe_base64_encode
 from .tokens import activation_token_generator
 
 
-def build_frontend_url(path: str, uidb64: str, token: str) -> str:
-    """Build a frontend URL containing uidb64 and token query parameters."""
-    query_params = urlencode({"uidb64": uidb64, "token": token})
+def build_frontend_url(path: str, uid: str, token: str) -> str:
+    """Build a frontend URL containing uid and token query parameters."""
+    query_params = urlencode({"uid": uid, "token": token})
     return f"{settings.FRONTEND_BASE_URL}/{path}?{query_params}"
 
 
@@ -106,9 +106,9 @@ def build_password_reset_email_html(reset_url: str) -> str:
 
 def send_activation_email(user) -> str:
     """Send an account activation e-mail to the given user."""
-    uidb64 = get_uidb64(user)
+    uid = get_uidb64(user)
     token = activation_token_generator.make_token(user)
-    activation_url = build_frontend_url("pages/auth/activate.html", uidb64, token)
+    activation_url = build_frontend_url("pages/auth/activate.html", uid, token)
     text_body = f"Activate your account:\n{activation_url}"
     html_body = build_activation_email_html(user, activation_url)
 
@@ -124,9 +124,9 @@ def send_activation_email(user) -> str:
 
 def send_password_reset_email(user) -> None:
     """Send a password reset e-mail to the given user."""
-    uidb64 = get_uidb64(user)
+    uid = get_uidb64(user)
     token = default_token_generator.make_token(user)
-    reset_url = build_frontend_url("pages/auth/confirm_password.html", uidb64, token)
+    reset_url = build_frontend_url("pages/auth/confirm_password.html", uid, token)
     text_body = f"Reset your password:\n{reset_url}"
     html_body = build_password_reset_email_html(reset_url)
 
