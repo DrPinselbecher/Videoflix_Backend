@@ -1,45 +1,72 @@
 services:
-
   db:
-    image: postgres:latest
+    image: postgres:17-alpine
     container_name: videoflix_database
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
-      - postgres_data:/var/lib/postgresql
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
-    image: redis:latest
+    image: redis:7-alpine
     container_name: videoflix_redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   web:
     build:
       context: .
       dockerfile: backend.Dockerfile
-    env_file: .env
     container_name: videoflix_backend
-
-    volumes:
-      - .:/app
-      - videoflix_media:/app/media
-      - videoflix_static:/app/static
-    ports:
-      - "8000:8000"
+    restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      - PYTHONUNBUFFERED=1
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - ./media:/app/media
+    ports:
+      - "127.0.0.1:8000:8000"
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
-
-
+  worker:
+    build:
+      context: .
+      dockerfile: backend.Dockerfile
+    container_name: videoflix_worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - ./media:/app/media
+    entrypoint: ["python", "manage.py", "rqworker", "default"]
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
 volumes:
   postgres_data:
   redis_data:
-  videoflix_media:
-  videoflix_static:

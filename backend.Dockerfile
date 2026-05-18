@@ -1,22 +1,33 @@
-FROM python:3.12-alpine
+FROM python:3.12-slim
 
-LABEL maintainer="mihai@developerakademie.com"
-LABEL version="1.0"
-LABEL description="Python 3.14.0a7 Alpine 3.21"
+LABEL org.opencontainers.image.title="Videoflix Backend"
+LABEL org.opencontainers.image.description="Django REST API backend for a video streaming platform with JWT authentication, Redis queue processing and HLS video streaming"
+LABEL org.opencontainers.image.authors="René Theis <contact@rene-theis.de>"
+LABEL org.opencontainers.image.source="https://github.com/DrPinselbecher/Videoflix_Backend"
+LABEL org.opencontainers.image.version="1.0.0"
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PIP_NO_CACHE_DIR=1
 
 WORKDIR /app
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        bash \
+        ffmpeg \
+        postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+
+RUN pip install --upgrade pip \
+    && pip install -r requirements.txt
+
 COPY . .
 
-RUN apk update && \
-    apk add --no-cache --upgrade bash && \
-    apk add --no-cache postgresql-client ffmpeg && \
-    apk add --no-cache --virtual .build-deps gcc musl-dev postgresql-dev && \
-    pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt && \
-    apk del .build-deps && \
-    chmod +x backend.entrypoint.sh
+RUN chmod +x backend.entrypoint.sh
 
 EXPOSE 8000
 
-ENTRYPOINT [ "./backend.entrypoint.sh" ]
+ENTRYPOINT ["./backend.entrypoint.sh"]

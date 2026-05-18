@@ -26,29 +26,39 @@ def env_bool(name: str, default: str = "False") -> bool:
     return os.environ.get(name, default).strip().lower() in ("true", "1", "t", "yes")
 
 
-SECRET_KEY = os.getenv(
-    "SECRET_KEY",
-    default="django-insecure-@#x5h3zj!g+8g1v@2^b6^9$8&f1r7g$@t3v!p4#=g0r5qzj4m3",
+def env_list(name: str, default: str = "") -> list[str]:
+    return [
+        value.strip()
+        for value in os.environ.get(name, default).split(",")
+        if value.strip()
+    ]
+
+DEBUG = env_bool("DEBUG", "False")
+
+SECRET_KEY = os.environ.get("SECRET_KEY")
+
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = "django-insecure-local-development-key"
+    else:
+        raise RuntimeError("SECRET_KEY must be set when DEBUG=False")
+
+ALLOWED_HOSTS = env_list(
+    "ALLOWED_HOSTS",
+    "localhost,127.0.0.1",
 )
 
-DEBUG = env_bool("DEBUG", "True")
-
-ALLOWED_HOSTS = os.environ.get(
-    "ALLOWED_HOSTS",
-    default="localhost,127.0.0.1",
-).split(",")
-
-CSRF_TRUSTED_ORIGINS = os.environ.get(
+CSRF_TRUSTED_ORIGINS = env_list(
     "CSRF_TRUSTED_ORIGINS",
-    default="http://localhost:5500,http://127.0.0.1:5500",
-).split(",")
+    "http://localhost:5500,http://127.0.0.1:5500",
+)
 
-CORS_ALLOWED_ORIGINS = os.environ.get(
+CORS_ALLOWED_ORIGINS = env_list(
     "CORS_ALLOWED_ORIGINS",
-    default="http://localhost:5500,http://127.0.0.1:5500",
-).split(",")
+    "http://localhost:5500,http://127.0.0.1:5500",
+)
 
-CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_CREDENTIALS = env_bool("CORS_ALLOW_CREDENTIALS", "True")
 
 FRONTEND_BASE_URL = os.environ.get(
     "FRONTEND_BASE_URL",
@@ -81,8 +91,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "corsheaders.middleware.CorsMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -164,10 +174,23 @@ SIMPLE_JWT = {
 
 JWT_ACCESS_COOKIE_NAME = "access_token"
 JWT_REFRESH_COOKIE_NAME = "refresh_token"
-JWT_COOKIE_SECURE = not DEBUG
-JWT_COOKIE_SAMESITE = "Lax"
+JWT_COOKIE_SECURE = env_bool("JWT_COOKIE_SECURE", str(not DEBUG))
+JWT_COOKIE_SAMESITE = os.environ.get("JWT_COOKIE_SAMESITE", default="Lax")
 JWT_ACCESS_COOKIE_MAX_AGE = 15 * 60
 JWT_REFRESH_COOKIE_MAX_AGE = 7 * 24 * 60 * 60
+
+CSRF_COOKIE_DOMAIN = os.environ.get("CSRF_COOKIE_DOMAIN") or None
+CSRF_COOKIE_SAMESITE = os.environ.get("CSRF_COOKIE_SAMESITE", default="Lax")
+CSRF_COOKIE_SECURE = not DEBUG
+
+SESSION_COOKIE_SECURE = not DEBUG
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", "False")
+SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "0"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", "False")
+SECURE_HSTS_PRELOAD = env_bool("SECURE_HSTS_PRELOAD", "False")
 
 
 EMAIL_HOST = os.environ.get("EMAIL_HOST", default="")
@@ -227,6 +250,13 @@ STATIC_ROOT = BASE_DIR / "static"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

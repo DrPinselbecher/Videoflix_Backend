@@ -7,8 +7,9 @@ from video_app.models import Video
 
 def create_test_video(
     title: str = "Test Video",
-    category: str = "Action",
+    category: str = Video.Category.ACTION,
     thumbnail: bool = False,
+    hls_master_playlist: str = "",
 ) -> Video:
     """Create a test video without starting the RQ processing job."""
     video_file = SimpleUploadedFile(
@@ -32,5 +33,21 @@ def create_test_video(
             description="Test description",
             video_file=video_file,
             thumbnail=thumbnail_file,
+            hls_master_playlist=hls_master_playlist,
             category=category,
         )
+
+
+def create_processed_test_video(
+    title: str = "Test Video",
+    category: str = Video.Category.ACTION,
+    thumbnail: bool = False,
+    hls_master_playlist: str = "hls/test/master.m3u8",
+) -> Video:
+    """Create a test video that is treated as fully HLS processed."""
+    return create_test_video(
+        title=title,
+        category=category,
+        thumbnail=thumbnail,
+        hls_master_playlist=hls_master_playlist,
+    )
