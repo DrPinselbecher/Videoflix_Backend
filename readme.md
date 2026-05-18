@@ -41,6 +41,7 @@ It provides user registration, e-mail activation, JWT authentication with HttpOn
 - [Video Processing](#video-processing)
 - [HLS Streaming](#hls-streaming)
 - [Media and Static Files](#media-and-static-files)
+- [Production Deployment Notes](#production-deployment-notes)
 - [Testing](#testing)
 - [Useful Commands](#useful-commands)
 - [Clean Code Structure](#clean-code-structure)
@@ -392,6 +393,32 @@ Copy-Item .env.template .env
 cp .env.template .env
 ```
 
+### 2.1 Adjust Environment for Local Development
+
+The `.env.template` contains production-oriented values. For local development, adjust these values in `.env`:
+
+```env
+DEBUG=True
+
+ALLOWED_HOSTS=localhost,127.0.0.1
+CSRF_TRUSTED_ORIGINS=http://localhost:5500,http://127.0.0.1:5500
+CORS_ALLOWED_ORIGINS=http://localhost:5500,http://127.0.0.1:5500
+
+FRONTEND_BASE_URL=http://127.0.0.1:5500
+
+JWT_COOKIE_SECURE=False
+JWT_COOKIE_SAMESITE=Lax
+CSRF_COOKIE_DOMAIN=
+CSRF_COOKIE_SAMESITE=Lax
+
+SECURE_SSL_REDIRECT=False
+SECURE_HSTS_SECONDS=0
+SECURE_HSTS_INCLUDE_SUBDOMAINS=False
+SECURE_HSTS_PRELOAD=False
+
+EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+```
+
 ### 3. Generate a Django Secret Key
 
 Generate a local secret key without special characters:
@@ -508,11 +535,11 @@ http://127.0.0.1:8000
 http://127.0.0.1:8000/admin/
 ```
 
-Use the superuser credentials from `.env`:
+Use the superuser credentials configured in `.env`:
 
 ```text
-Username: admin
-Password: adminpassword
+Username: value from DJANGO_SUPERUSER_USERNAME
+Password: value from DJANGO_SUPERUSER_PASSWORD
 ```
 
 ### 11. Start the Frontend
@@ -547,7 +574,7 @@ JWT_COOKIE_SAMESITE = os.environ.get("JWT_COOKIE_SAMESITE", default="Lax")
 JWT_ACCESS_COOKIE_MAX_AGE = 15 * 60
 JWT_REFRESH_COOKIE_MAX_AGE = 7 * 24 * 60 * 60
 
-CSRF_COOKIE_DOMAIN = os.environ.get("CSRF_COOKIE_DOMAIN", default=None)
+CSRF_COOKIE_DOMAIN = os.environ.get("CSRF_COOKIE_DOMAIN") or None
 CSRF_COOKIE_SAMESITE = os.environ.get("CSRF_COOKIE_SAMESITE", default="Lax")
 CSRF_COOKIE_SECURE = not DEBUG
 ```
@@ -777,7 +804,7 @@ Segment validation prevents invalid file access:
 
 ```text
 segment must end with ".ts"
-segment must not contain "/" or "\"
+segment must not contain "/" or "\\"
 segment must start with the selected resolution prefix
 ```
 
@@ -814,15 +841,23 @@ Example thumbnail URL:
 http://127.0.0.1:8000/media/thumbnails/video_1.jpg
 ```
 
+Static files are collected during container startup through:
+
+```bash
+python manage.py collectstatic --noinput
+```
+
+The project uses WhiteNoise for serving collected static files. Therefore, no host-mounted `./static:/app/static` volume is required.
+
 ### Production
 
 Recommended production setup:
 
 | File Type | Recommended Delivery |
 |---|---|
-| Static files | WhiteNoise or Nginx |
-| Thumbnails | Nginx or Object Storage |
-| HLS playlists and segments | Protected Django API or secured Nginx |
+| Static files | WhiteNoise through Gunicorn |
+| Thumbnails | Django media storage, optionally Nginx or Object Storage later |
+| HLS playlists and segments | Protected Django API |
 | Original videos | Not publicly exposed |
 
 > [!WARNING]
@@ -860,7 +895,6 @@ For small free-tier servers, run Gunicorn with one worker and process FFmpeg job
 ```bash
 gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 1 --timeout 120
 ```
-
 
 ---
 
