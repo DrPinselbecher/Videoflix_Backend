@@ -7,11 +7,24 @@
 ![Redis](https://img.shields.io/badge/Queue-Redis-red)
 ![Docker](https://img.shields.io/badge/Container-Docker-blue)
 ![FFmpeg](https://img.shields.io/badge/Video-FFmpeg-green)
-![Status](https://img.shields.io/badge/Status-Ready_for_Submission-brightgreen)
+![Status](https://img.shields.io/badge/Status-Production_Deployed-brightgreen)
 
 Videoflix Backend is a Django-based REST API for a Netflix-/Prime-Video-like streaming platform.
 
-It provides user registration, e-mail activation, JWT authentication with HttpOnly cookies, password reset, protected video endpoints, automatic thumbnail generation and protected HLS video streaming.
+It provides user registration, e-mail activation, JWT authentication with HttpOnly cookies, password reset, protected video endpoints, automatic thumbnail generation, background video processing and protected HLS video streaming.
+
+---
+
+## Live Demo
+
+| Area | URL |
+|---|---|
+| Frontend | https://videoflix.rene-theis.de |
+| Backend API | https://api-videoflix.rene-theis.de |
+| Django Admin | https://api-videoflix.rene-theis.de/admin/ |
+
+> [!IMPORTANT]
+> The admin area is protected. Admin credentials are not included in this repository.
 
 ---
 
@@ -34,8 +47,8 @@ It provides user registration, e-mail activation, JWT authentication with HttpOn
 - [Core Features](#core-features)
 - [Architecture](#architecture)
 - [Project Structure](#project-structure)
-- [Environment Template](#environment-template)
-- [Local Setup](#local-setup)
+- [Local Evaluation Setup](#local-evaluation-setup)
+- [Environment Variables](#environment-variables)
 - [Authentication Flow](#authentication-flow)
 - [API Endpoints](#api-endpoints)
 - [Video Processing](#video-processing)
@@ -71,13 +84,8 @@ The backend supports the main features required for a modern streaming platform:
 - automatic HLS conversion using FFmpeg
 - protected HLS playlist and segment delivery
 - video list output only after completed HLS processing
-- automated backend tests for authentication, video endpoints, HLS delivery, tasks and signals
-
-The matching frontend repository is:
-
-```text
-https://github.com/DrPinselbecher/Videoflix_Frontend
-```
+- automated backend tests for authentication, video endpoints, HLS delivery, background tasks and signals
+- Docker-based local evaluation setup for reviewers and employers
 
 ---
 
@@ -90,13 +98,15 @@ https://github.com/DrPinselbecher/Videoflix_Frontend
 | Authentication | djangorestframework-simplejwt |
 | Database | PostgreSQL |
 | Cache / Queue Broker | Redis |
-| Background Jobs | django-rq |
+| Background Jobs | django-rq / RQ |
 | Video Processing | FFmpeg |
 | Static Files | WhiteNoise |
 | Application Server | Gunicorn |
 | Containerization | Docker Compose |
-| E-Mail Delivery | SMTP |
+| E-Mail Delivery | SMTP in production, console backend locally |
 | Tests | Django TestCase / DRF APITestCase |
+| Production Reverse Proxy | Nginx |
+| HTTPS | Let's Encrypt / Certbot |
 
 ---
 
@@ -135,7 +145,8 @@ https://github.com/DrPinselbecher/Videoflix_Frontend
 - Gunicorn as application server
 - WhiteNoise for static file handling
 - SMTP-ready e-mail delivery
-- production-oriented environment configuration for HTTPS, CORS and CSRF
+- local console e-mail backend for evaluation
+- production deployment with Nginx and HTTPS
 
 ---
 
@@ -169,6 +180,34 @@ RQ Worker Process
 Thumbnails + HLS files
 ```
 
+Production structure:
+
+```text
+Internet
+   |
+   v
+Nginx / HTTPS
+   |
+   v
+Gunicorn / Django Backend
+   |
+   | ORM
+   v
+PostgreSQL
+
+Django Backend
+   |
+   | Queue jobs
+   v
+Redis
+   |
+   v
+RQ Worker
+   |
+   v
+FFmpeg video processing
+```
+
 Current Docker services:
 
 | Compose Service | Container Name | Purpose |
@@ -177,16 +216,6 @@ Current Docker services:
 | `worker` | `videoflix_worker` | RQ worker for thumbnails and HLS processing |
 | `db` | `videoflix_database` | PostgreSQL database |
 | `redis` | `videoflix_redis` | Redis cache and queue broker |
-
-Production-oriented structure:
-
-```text
-nginx    -> Reverse proxy / HTTPS termination
-web      -> Gunicorn
-worker   -> python manage.py rqworker default
-redis    -> Redis
-db       -> PostgreSQL
-```
 
 ---
 
@@ -268,44 +297,78 @@ media/
 
 ---
 
-## Environment Template
+## Local Evaluation Setup
 
-Create a `.env` file based on `.env.template`.
+This section is intended for reviewers, recruiters and employers who want to run and test the backend locally.
 
-The provided values below are production-oriented for the Videoflix portfolio deployment. Replace all placeholder values before starting the containers.
+The recommended setup is Docker Compose. It starts the Django backend, PostgreSQL, Redis and the separate RQ worker in containers.
+
+### Prerequisites
+
+| Tool | Purpose |
+|---|---|
+| Git | Clone the repository |
+| Docker Desktop | Run backend, database, Redis and worker containers |
+| Python 3.12+ | Optional; only needed to generate a local secret key outside Docker |
+
+### 1. Clone Repository
+
+```bash
+git clone https://github.com/DrPinselbecher/Videoflix_Backend.git
+cd Videoflix_Backend
+```
+
+### 2. Create Environment File
+
+#### Windows PowerShell
+
+```powershell
+Copy-Item .env.template .env
+```
+
+#### macOS / Linux
+
+```bash
+cp .env.template .env
+```
+
+### 3. Use Local Environment Values
+
+The `.env.template` is production-oriented. For local evaluation, replace the values in `.env` with the following local configuration:
 
 ```env
 # Django
-SECRET_KEY=replace_this_with_a_generated_secret_key
-DEBUG=False
+SECRET_KEY=replace_this_with_a_generated_local_secret_key
+DEBUG=True
 
-ALLOWED_HOSTS=api-videoflix.rene-theis.de
-CSRF_TRUSTED_ORIGINS=https://api-videoflix.rene-theis.de,https://videoflix.rene-theis.de
-CORS_ALLOWED_ORIGINS=https://videoflix.rene-theis.de
+ALLOWED_HOSTS=localhost,127.0.0.1
+CSRF_TRUSTED_ORIGINS=http://localhost:5500,http://127.0.0.1:5500
+CORS_ALLOWED_ORIGINS=http://localhost:5500,http://127.0.0.1:5500
 CORS_ALLOW_CREDENTIALS=True
 
-FRONTEND_BASE_URL=https://videoflix.rene-theis.de
+FRONTEND_BASE_URL=http://127.0.0.1:5500
 EMAIL_LOGO_URL=https://assets.rene-theis.de/videoflix/videoflix_logo.png
 
-# Cookies / HTTPS
-JWT_COOKIE_SECURE=True
+# Cookies / local HTTP
+JWT_COOKIE_SECURE=False
 JWT_COOKIE_SAMESITE=Lax
-CSRF_COOKIE_DOMAIN=.rene-theis.de
+CSRF_COOKIE_DOMAIN=
 CSRF_COOKIE_SAMESITE=Lax
+
 SECURE_SSL_REDIRECT=False
 SECURE_HSTS_SECONDS=0
 SECURE_HSTS_INCLUDE_SUBDOMAINS=False
 SECURE_HSTS_PRELOAD=False
 
-# Initial Django superuser
+# Initial local Django superuser
 DJANGO_SUPERUSER_USERNAME=admin
-DJANGO_SUPERUSER_PASSWORD=replace_this_with_a_secure_admin_password
-DJANGO_SUPERUSER_EMAIL=admin@rene-theis.de
+DJANGO_SUPERUSER_PASSWORD=adminpassword123
+DJANGO_SUPERUSER_EMAIL=admin@example.com
 
 # PostgreSQL
 DB_NAME=videoflix_db
 DB_USER=videoflix_user
-DB_PASSWORD=replace_this_with_a_secure_database_password
+DB_PASSWORD=local_database_password
 DB_HOST=db
 DB_PORT=5432
 
@@ -315,16 +378,215 @@ REDIS_LOCATION=redis://redis:6379/1
 REDIS_PORT=6379
 REDIS_DB=0
 
-# E-Mail / SMTP
-EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
-EMAIL_HOST=w01f3b7f.kasserver.com
-EMAIL_PORT=465
-EMAIL_HOST_USER=noreply@rene-theis.de
-EMAIL_HOST_PASSWORD=replace_this_with_your_mailbox_password
+# Local e-mail output
+EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+EMAIL_HOST=
+EMAIL_PORT=587
+EMAIL_HOST_USER=
+EMAIL_HOST_PASSWORD=
 EMAIL_USE_TLS=False
-EMAIL_USE_SSL=True
-DEFAULT_FROM_EMAIL=Videoflix <noreply@rene-theis.de>
+EMAIL_USE_SSL=False
+DEFAULT_FROM_EMAIL=Videoflix <noreply@localhost>
 ```
+
+> [!WARNING]
+> These values are only intended for local testing. Do not use them in production.
+
+### 4. Generate a Local Django Secret Key
+
+Generate a local secret key without special characters:
+
+```bash
+python -c "import secrets,string; print(''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(50)))"
+```
+
+Replace this value in `.env`:
+
+```env
+SECRET_KEY=replace_this_with_a_generated_local_secret_key
+```
+
+> [!IMPORTANT]
+> Do not use quotation marks around the secret key if it only contains letters and numbers.
+
+### 5. Start Containers
+
+```bash
+docker compose up -d --build
+```
+
+The backend entrypoint performs the startup steps automatically:
+
+```text
+wait for PostgreSQL
+collect static files
+run migrations
+create the configured superuser if missing
+start Gunicorn
+```
+
+The RQ worker runs as a separate Docker Compose service:
+
+```bash
+python manage.py rqworker default
+```
+
+### 6. Check Container Status
+
+```bash
+docker compose ps
+```
+
+Expected running containers:
+
+```text
+videoflix_backend
+videoflix_worker
+videoflix_database
+videoflix_redis
+```
+
+### 7. Run Django System Check
+
+```bash
+docker compose exec web python manage.py check
+```
+
+Expected result:
+
+```text
+System check identified no issues (0 silenced).
+```
+
+### 8. Run Automated Tests
+
+```bash
+docker compose exec web python manage.py test
+```
+
+Expected result:
+
+```text
+OK
+```
+
+### 9. Open Backend and Admin
+
+Backend:
+
+```text
+http://127.0.0.1:8000
+```
+
+Django Admin:
+
+```text
+http://127.0.0.1:8000/admin/
+```
+
+Local admin credentials from the `.env` example above:
+
+```text
+Username: admin
+Password: adminpassword123
+```
+
+> [!IMPORTANT]
+> These credentials are for local evaluation only and must not be used in production.
+
+### 10. Test Local E-Mail Flows
+
+For local evaluation, e-mails are printed to the backend logs instead of being sent through SMTP.
+
+Follow backend logs:
+
+```bash
+docker compose logs web --tail=100 -f
+```
+
+Then trigger one of these flows:
+
+```text
+registration
+account activation
+password reset
+```
+
+The activation or password reset link will be printed in the backend logs.
+
+Stop log following with:
+
+```text
+CTRL + C
+```
+
+### 11. Optional: Run the Frontend Locally
+
+Clone the frontend repository separately:
+
+```bash
+git clone https://github.com/DrPinselbecher/Videoflix_Frontend.git
+cd Videoflix_Frontend
+```
+
+For local backend usage, the frontend API base URL should point to the local backend API root:
+
+```js
+const API_BASE_URL = "http://127.0.0.1:8000/api/";
+```
+
+Serve the frontend with a local static server, for example with VS Code Live Server.
+
+Expected local frontend URL:
+
+```text
+http://127.0.0.1:5500
+```
+
+### 12. Optional: Test Video Processing Locally
+
+1. Open Django Admin.
+2. Upload a short `.mp4` file.
+3. Watch the worker logs:
+
+```bash
+docker compose logs worker --tail=100 -f
+```
+
+The worker will:
+
+```text
+generate a thumbnail
+generate HLS playlists
+generate HLS segments
+set hls_master_playlist after processing
+```
+
+The video appears in the video list only after processing has completed.
+
+> [!NOTE]
+> For local evaluation, use short videos. Large 4K videos can take a long time to process.
+
+### 13. Stop the Local Stack
+
+```bash
+docker compose down
+```
+
+To remove containers and local volumes:
+
+```bash
+docker compose down -v
+```
+
+> [!WARNING]
+> `docker compose down -v` removes the local PostgreSQL and Redis volumes.
+
+---
+
+## Environment Variables
+
+The project uses `.env` values for Django, database, Redis, cookies, CORS, CSRF and e-mail configuration.
 
 | Variable | Description |
 |---|---|
@@ -367,190 +629,6 @@ DEFAULT_FROM_EMAIL=Videoflix <noreply@rene-theis.de>
 
 > [!WARNING]
 > Do not commit a real `.env` file. Only commit `.env.template`.
-
----
-
-## Local Setup
-
-### 1. Clone Repository
-
-```bash
-git clone https://github.com/DrPinselbecher/Videoflix_Backend.git
-cd Videoflix_Backend
-```
-
-### 2. Create Environment File
-
-#### Windows PowerShell
-
-```powershell
-Copy-Item .env.template .env
-```
-
-#### macOS / Linux
-
-```bash
-cp .env.template .env
-```
-
-### 2.1 Adjust Environment for Local Development
-
-The `.env.template` contains production-oriented values. For local development, adjust these values in `.env`:
-
-```env
-DEBUG=True
-
-ALLOWED_HOSTS=localhost,127.0.0.1
-CSRF_TRUSTED_ORIGINS=http://localhost:5500,http://127.0.0.1:5500
-CORS_ALLOWED_ORIGINS=http://localhost:5500,http://127.0.0.1:5500
-
-FRONTEND_BASE_URL=http://127.0.0.1:5500
-
-JWT_COOKIE_SECURE=False
-JWT_COOKIE_SAMESITE=Lax
-CSRF_COOKIE_DOMAIN=
-CSRF_COOKIE_SAMESITE=Lax
-
-SECURE_SSL_REDIRECT=False
-SECURE_HSTS_SECONDS=0
-SECURE_HSTS_INCLUDE_SUBDOMAINS=False
-SECURE_HSTS_PRELOAD=False
-
-EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
-```
-
-### 3. Generate a Django Secret Key
-
-Generate a local secret key without special characters:
-
-```bash
-python -c "import secrets,string; print(''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(50)))"
-```
-
-Copy the generated value and replace this line in `.env`:
-
-```env
-SECRET_KEY=replace_this_with_a_generated_secret_key
-```
-
-Example:
-
-```env
-SECRET_KEY=your_generated_50_character_secret_key
-```
-
-> [!IMPORTANT]
-> Do not use quotation marks around the secret key if it only contains letters and numbers.
-
-### 4. Verify Local Docker Values
-
-For local Docker development, these values must be set in `.env`:
-
-```env
-DB_HOST=db
-DB_PORT=5432
-
-REDIS_HOST=redis
-REDIS_LOCATION=redis://redis:6379/1
-```
-
-### 5. Start Containers
-
-```bash
-docker compose up -d --build
-```
-
-The `web` container starts through `backend.entrypoint.sh`.
-
-On startup, the backend entrypoint:
-
-```text
-waits for PostgreSQL
-runs collectstatic
-runs migrate
-creates the configured superuser if missing
-starts Gunicorn
-```
-
-The Gunicorn process runs the Django backend:
-
-```bash
-gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 1 --timeout 120
-```
-
-The RQ worker runs as a separate Docker Compose service:
-
-```bash
-python manage.py rqworker default
-```
-
-### 6. Check Container Status
-
-```bash
-docker compose ps
-```
-
-Expected running containers:
-
-```text
-videoflix_backend
-videoflix_worker
-videoflix_database
-videoflix_redis
-```
-
-### 7. Run Django System Check
-
-```bash
-docker compose exec web python manage.py check
-```
-
-Expected result:
-
-```text
-System check identified no issues (0 silenced).
-```
-
-### 8. Run Tests
-
-```bash
-docker compose exec web python manage.py test
-```
-
-Expected result:
-
-```text
-OK
-```
-
-### 9. Access Backend
-
-```text
-http://127.0.0.1:8000
-```
-
-### 10. Access Django Admin
-
-```text
-http://127.0.0.1:8000/admin/
-```
-
-Use the superuser credentials configured in `.env`:
-
-```text
-Username: value from DJANGO_SUPERUSER_USERNAME
-Password: value from DJANGO_SUPERUSER_PASSWORD
-```
-
-### 11. Start the Frontend
-
-Start the matching frontend repository.
-
-Expected local frontend URL:
-
-```text
-http://127.0.0.1:5500
-```
 
 ---
 
@@ -804,7 +882,7 @@ Segment validation prevents invalid file access:
 
 ```text
 segment must end with ".ts"
-segment must not contain "/" or "\\"
+segment must not contain "/" or "\"
 segment must start with the selected resolution prefix
 ```
 
@@ -853,10 +931,10 @@ The project uses WhiteNoise for serving collected static files. Therefore, no ho
 
 Recommended production setup:
 
-| File Type | Recommended Delivery |
+| File Type | Delivery |
 |---|---|
 | Static files | WhiteNoise through Gunicorn |
-| Thumbnails | Django media storage, optionally Nginx or Object Storage later |
+| Thumbnails | Nginx alias for public thumbnail delivery |
 | HLS playlists and segments | Protected Django API |
 | Original videos | Not publicly exposed |
 
@@ -867,12 +945,27 @@ Recommended production setup:
 
 ## Production Deployment Notes
 
-Planned portfolio production URLs:
+Production URLs:
 
 | Area | URL |
 |---|---|
 | Frontend | `https://videoflix.rene-theis.de` |
 | Backend API | `https://api-videoflix.rene-theis.de` |
+
+The production deployment uses:
+
+```text
+Oracle Cloud Free Tier
+Docker Compose
+Nginx reverse proxy
+Let's Encrypt / Certbot
+Gunicorn
+WhiteNoise
+PostgreSQL
+Redis
+RQ worker
+FFmpeg
+```
 
 Production uses HTTPS, credentialed CORS requests and CSRF protection across the frontend and API subdomains.
 
@@ -888,9 +981,7 @@ CSRF_COOKIE_DOMAIN=.rene-theis.de
 JWT_COOKIE_SECURE=True
 ```
 
-The public API subdomain should point to the server's public IPv4 address through an `A` record.
-
-For small free-tier servers, run Gunicorn with one worker and process FFmpeg jobs sequentially.
+For small free-tier servers, Gunicorn should run with one worker and FFmpeg jobs should be processed sequentially.
 
 ```bash
 gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 1 --timeout 120
@@ -1018,22 +1109,28 @@ docker compose exec web python manage.py shell
 docker compose logs web --tail=100
 ```
 
+### Follow Backend Logs
+
+```bash
+docker compose logs web --tail=100 -f
+```
+
 ### Show Worker Logs
 
 ```bash
 docker compose logs worker --tail=100
 ```
 
-### Show Extended Backend Logs
+### Follow Worker Logs
 
 ```bash
-docker compose logs web --tail=300
+docker compose logs worker --tail=100 -f
 ```
 
-### Test SMTP E-Mail Delivery
+### Test E-Mail Delivery
 
 ```bash
-docker compose exec web python manage.py shell -c "from django.core.mail import send_mail; print(send_mail('Videoflix SMTP Test', 'Testmail erfolgreich.', None, ['your-email@example.com'], fail_silently=False))"
+docker compose exec web python manage.py shell -c "from django.core.mail import send_mail; print(send_mail('Videoflix Mail Test', 'Test message sent successfully.', None, ['your-email@example.com'], fail_silently=False))"
 ```
 
 Expected result:
@@ -1087,6 +1184,7 @@ Backend-specific clean code goals:
 - Real secrets must not be committed to Git.
 - `.env` must never be committed.
 - `.env.template` must not contain production secrets.
+- Local evaluation credentials must never be reused in production.
 
 Generic authentication error example:
 
@@ -1115,6 +1213,7 @@ Generic authentication error example:
 - Frontend/backend communication happens through the REST API.
 - The Docker entrypoint waits for PostgreSQL before running startup tasks.
 - E-mail links use `uid` as frontend query parameter and pass the base64 encoded user ID to backend endpoints as `uidb64`.
+- For local evaluation, e-mails are printed to the backend container logs.
 
 ---
 
@@ -1143,17 +1242,22 @@ Implemented:
 - automated tests for video processing task and signals
 - Docker-based setup with PostgreSQL, Redis, Gunicorn and a separate RQ worker
 - SMTP-ready e-mail delivery configuration
+- console e-mail backend support for local evaluation
 - public logo URL for HTML e-mails
 - frontend-compatible `uid` query parameters for activation and password reset links
 - video list filtering for completed HLS processing
+- Docker-based local evaluation setup for reviewers and employers
+- production deployment on Oracle Cloud Free Tier
+- HTTPS through Nginx and Let's Encrypt
+- public thumbnail delivery through Nginx
+- protected original video and HLS delivery
 
-Planned production improvements:
+Planned improvements:
 
-- Nginx reverse proxy for HTTPS termination
-- production-ready HTTPS setup with Let's Encrypt
 - optional object storage for media files
 - database and media backup strategy
 - extended edge-case and integration test coverage
+- optional processing status/progress display for video encoding
 
 ---
 
