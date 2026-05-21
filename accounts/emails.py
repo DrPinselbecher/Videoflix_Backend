@@ -37,71 +37,112 @@ def send_html_email(subject: str, text_body: str, html_body: str, recipient: str
     email.send(fail_silently=False)
 
 
-def build_activation_email_html(user, activation_url: str) -> str:
-    """Build the HTML body for the account activation e-mail."""
+def build_email_layout(title: str, intro: str, button_text: str, action_url: str, footer: str) -> str:
+    """Build a reusable HTML e-mail layout."""
+    logo_url = get_logo_url()
+
     return f"""
-    <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
-        <div style="text-align: center; margin-bottom: 28px;">
-            <img src="{get_logo_url()}" alt="Videoflix" style="max-width: 280px;">
-        </div>
+    <!doctype html>
+    <html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{title}</title>
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #f5f5f5;">
+        <span style="display: none; max-height: 0; overflow: hidden; color: transparent;">
+            {intro}
+        </span>
 
-        <p>Dear {user.email},</p>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
+               style="background-color: #f5f5f5; padding: 32px 0;">
+            <tr>
+                <td align="center">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
+                           style="max-width: 560px; background-color: #ffffff; border-radius: 12px;
+                                  padding: 32px; font-family: Arial, sans-serif; color: #222222;">
+                        <tr>
+                            <td align="center" style="padding-bottom: 28px;">
+                                <img src="{logo_url}" alt="Videoflix" style="max-width: 240px;">
+                            </td>
+                        </tr>
 
-        <p>
-            Thank you for registering with <span style="color: #1f2bff;">Videoflix</span>.
-            To complete your registration and verify your e-mail address,
-            please click the link below:
-        </p>
+                        <tr>
+                            <td>
+                                <h1 style="font-size: 24px; margin: 0 0 20px 0; color: #111111;">
+                                    {title}
+                                </h1>
 
-        <p style="margin: 32px 0;">
-            <a href="{activation_url}"
-               style="background: #1f2bff; color: #ffffff; text-decoration: none;
-                      padding: 14px 28px; border-radius: 28px; font-weight: bold;
-                      display: inline-block;">
-                Activate account
-            </a>
-        </p>
+                                <p style="font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
+                                    {intro}
+                                </p>
 
-        <p>If you did not create an account with us, please disregard this e-mail.</p>
+                                <p style="text-align: center; margin: 32px 0;">
+                                    <a href="{action_url}"
+                                       style="background-color: #1f2bff; color: #ffffff;
+                                              text-decoration: none; padding: 14px 28px;
+                                              border-radius: 28px; font-weight: bold;
+                                              display: inline-block;">
+                                        {button_text}
+                                    </a>
+                                </p>
 
-        <p>Best regards,</p>
-        <p>Your Videoflix Team.</p>
-    </div>
+                                <p style="font-size: 14px; line-height: 1.6; color: #555555;">
+                                    If the button does not work, copy and paste this link into your browser:
+                                </p>
+
+                                <p style="font-size: 14px; line-height: 1.6; word-break: break-all;">
+                                    <a href="{action_url}" style="color: #1f2bff;">
+                                        {action_url}
+                                    </a>
+                                </p>
+
+                                <p style="font-size: 14px; line-height: 1.6; color: #555555;
+                                          margin-top: 32px;">
+                                    {footer}
+                                </p>
+
+                                <p style="font-size: 14px; line-height: 1.6; color: #555555;">
+                                    Best regards,<br>
+                                    Your Videoflix Team
+                                </p>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
     """
+
+
+def build_activation_email_html(activation_url: str) -> str:
+    """Build the HTML body for the account activation e-mail."""
+    return build_email_layout(
+        title="Activate your Videoflix account",
+        intro=(
+            "Thank you for registering with Videoflix. "
+            "Please confirm your e-mail address to activate your account."
+        ),
+        button_text="Activate account",
+        action_url=activation_url,
+        footer="If you did not create a Videoflix account, you can safely ignore this e-mail.",
+    )
 
 
 def build_password_reset_email_html(reset_url: str) -> str:
     """Build the HTML body for the password reset e-mail."""
-    return f"""
-    <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
-        <p>Hello,</p>
-
-        <p>
-            We recently received a request to reset your password. If you made this request,
-            please click on the following link to reset your password:
-        </p>
-
-        <p style="margin: 32px 0;">
-            <a href="{reset_url}"
-               style="background: #1f2bff; color: #ffffff; text-decoration: none;
-                      padding: 14px 28px; border-radius: 28px; font-weight: bold;
-                      display: inline-block;">
-                Reset password
-            </a>
-        </p>
-
-        <p>Please note that for security reasons, this link is only valid for 24 hours.</p>
-
-        <p>If you did not request a password reset, please ignore this e-mail.</p>
-
-        <p>Best regards,</p>
-        <p>Your Videoflix team!</p>
-
-        <div style="margin-top: 32px;">
-            <img src="{get_logo_url()}" alt="Videoflix" style="max-width: 280px;">
-        </div>
-    </div>
-    """
+    return build_email_layout(
+        title="Reset your Videoflix password",
+        intro=(
+            "We received a request to reset your Videoflix password. "
+            "Use the button below to choose a new password."
+        ),
+        button_text="Reset password",
+        action_url=reset_url,
+        footer="If you did not request a password reset, you can safely ignore this e-mail.",
+    )
 
 
 def send_activation_email(user) -> str:
@@ -109,14 +150,24 @@ def send_activation_email(user) -> str:
     uid = get_uidb64(user)
     token = activation_token_generator.make_token(user)
     activation_url = build_frontend_url("pages/auth/activate.html", uid, token)
-    text_body = f"Activate your account:\n{activation_url}"
-    html_body = build_activation_email_html(user, activation_url)
+
+    text_body = (
+        "Activate your Videoflix account\n\n"
+        "Thank you for registering with Videoflix.\n"
+        "Please confirm your e-mail address using the link below:\n\n"
+        f"{activation_url}\n\n"
+        "If you did not create a Videoflix account, you can safely ignore this e-mail.\n\n"
+        "Best regards,\n"
+        "Your Videoflix Team"
+    )
+
+    html_body = build_activation_email_html(activation_url)
 
     send_html_email(
-        "Confirm your email",
-        text_body,
-        html_body,
-        user.email,
+        subject="Activate your Videoflix account",
+        text_body=text_body,
+        html_body=html_body,
+        recipient=user.email,
     )
 
     return token
@@ -127,12 +178,22 @@ def send_password_reset_email(user) -> None:
     uid = get_uidb64(user)
     token = default_token_generator.make_token(user)
     reset_url = build_frontend_url("pages/auth/confirm_password.html", uid, token)
-    text_body = f"Reset your password:\n{reset_url}"
+
+    text_body = (
+        "Reset your Videoflix password\n\n"
+        "We received a request to reset your Videoflix password.\n"
+        "Use the link below to choose a new password:\n\n"
+        f"{reset_url}\n\n"
+        "If you did not request a password reset, you can safely ignore this e-mail.\n\n"
+        "Best regards,\n"
+        "Your Videoflix Team"
+    )
+
     html_body = build_password_reset_email_html(reset_url)
 
     send_html_email(
-        "Reset your Password",
-        text_body,
-        html_body,
-        user.email,
+        subject="Reset your Videoflix password",
+        text_body=text_body,
+        html_body=html_body,
+        recipient=user.email,
     )
