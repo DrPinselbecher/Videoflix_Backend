@@ -20,6 +20,7 @@ It provides user registration, e-mail activation, JWT authentication with HttpOn
 | Area | URL |
 |---|---|
 | Frontend | https://videoflix.rene-theis.de |
+| Frontend with www | https://www.videoflix.rene-theis.de |
 | Backend API | https://api-videoflix.rene-theis.de |
 | Django Admin | https://api-videoflix.rene-theis.de/admin/ |
 
@@ -630,6 +631,9 @@ The project uses `.env` values for Django, database, Redis, cookies, CORS, CSRF 
 > [!WARNING]
 > Do not commit a real `.env` file. Only commit `.env.template`.
 
+> [!NOTE]
+> Public domains are not secrets, but `.env.template` should preferably use placeholder domains such as `your-api-domain.example.com` and `your-frontend-domain.example.com`. This keeps the template reusable and prevents confusion between example values and real production settings.
+
 ---
 
 ## Authentication Flow
@@ -950,6 +954,7 @@ Production URLs:
 | Area | URL |
 |---|---|
 | Frontend | `https://videoflix.rene-theis.de` |
+| Frontend with www | `https://www.videoflix.rene-theis.de` |
 | Backend API | `https://api-videoflix.rene-theis.de` |
 
 The production deployment uses:
@@ -974,12 +979,18 @@ Recommended production values:
 ```env
 DEBUG=False
 ALLOWED_HOSTS=api-videoflix.rene-theis.de
-CSRF_TRUSTED_ORIGINS=https://api-videoflix.rene-theis.de,https://videoflix.rene-theis.de
-CORS_ALLOWED_ORIGINS=https://videoflix.rene-theis.de
+CSRF_TRUSTED_ORIGINS=https://api-videoflix.rene-theis.de,https://videoflix.rene-theis.de,https://www.videoflix.rene-theis.de
+CORS_ALLOWED_ORIGINS=https://videoflix.rene-theis.de,https://www.videoflix.rene-theis.de
 FRONTEND_BASE_URL=https://videoflix.rene-theis.de
 CSRF_COOKIE_DOMAIN=.rene-theis.de
 JWT_COOKIE_SECURE=True
 ```
+
+> [!NOTE]
+> If the frontend is reachable with and without `www`, both frontend origins must be included in `CSRF_TRUSTED_ORIGINS` and `CORS_ALLOWED_ORIGINS`. Otherwise, browser requests from the `www` origin can fail before the registration request reaches the backend.
+
+> [!NOTE]
+> A production `.env` file may contain real domains, but a public `.env.template` should use placeholder domains and never contain real passwords, tokens or private credentials.
 
 For small free-tier servers, Gunicorn should run with one worker and FFmpeg jobs should be processed sequentially.
 
@@ -1139,6 +1150,12 @@ Expected result:
 1
 ```
 
+### Resend Activation E-Mail
+
+```bash
+docker compose exec web python manage.py shell -c "from accounts.models import User; from accounts.emails import send_activation_email; user = User.objects.get(email='your-email@example.com'); send_activation_email(user); print('activation email sent')"
+```
+
 ---
 
 ## Clean Code Structure
@@ -1184,6 +1201,7 @@ Backend-specific clean code goals:
 - Real secrets must not be committed to Git.
 - `.env` must never be committed.
 - `.env.template` must not contain production secrets.
+- `.env.template` should use placeholder domains for reusable public documentation.
 - Local evaluation credentials must never be reused in production.
 
 Generic authentication error example:
@@ -1214,6 +1232,7 @@ Generic authentication error example:
 - The Docker entrypoint waits for PostgreSQL before running startup tasks.
 - E-mail links use `uid` as frontend query parameter and pass the base64 encoded user ID to backend endpoints as `uidb64`.
 - For local evaluation, e-mails are printed to the backend container logs.
+- In production, every frontend origin that can call the API must be listed in `CSRF_TRUSTED_ORIGINS` and `CORS_ALLOWED_ORIGINS`.
 
 ---
 
@@ -1251,6 +1270,7 @@ Implemented:
 - HTTPS through Nginx and Let's Encrypt
 - public thumbnail delivery through Nginx
 - protected original video and HLS delivery
+- production CORS and CSRF configuration for frontend access with and without `www`
 
 Planned improvements:
 
